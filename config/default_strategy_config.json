@@ -1,0 +1,100 @@
+{
+  "configId": "123456789",
+  "strategyId": 6,
+  "strategies": [
+    {
+      "businessType": "AEB",
+      "trigger":
+      {
+        "triggerName": "AEBActiveTrigger",
+        "triggerId": "120003",
+        "priority": 12,
+        "enabled": true,
+        "triggerCondition": "(aeb_active=true)"
+      },
+      "mode":
+      {
+        "triggerMode": 0,
+        "cacheMode":
+        {
+          "forwardCaptureDurationSec": 15,
+          "backwardCaptureDurationSec": 5,
+          "cooldownDurationSec": 120
+        }
+      },
+      "enableMasking": false,
+      "channels":
+      {
+        "dds":
+        [
+          {
+            "topic": "/sensor/camera/center_camera_fov120",
+            "type": "Cam",
+            "originalFrameRate": 10,
+            "capturedFrameRate": 10
+          },
+          {
+            "topic": "/sensor/camera/center_camera_fov30",
+            "type": "Cam",
+            "originalFrameRate": 10,
+            "capturedFrameRate": 10
+          },
+          {
+            "topic": "/sensor/camera/left_front_camera",
+            "type": "Cam",
+            "originalFrameRate": 10,
+            "capturedFrameRate": 10
+          },
+          {
+            "topic": "/sensor/camera/left_rear_camera",
+            "type": "Cam",
+            "originalFrameRate": 10,
+            "capturedFrameRate": 10
+          },
+          {
+            "topic": "/sensor/camera/rear_camera",
+            "type": "Cam",
+            "originalFrameRate": 10,
+            "capturedFrameRate": 10
+          },
+          {
+            "topic": "/sensor/camera/right_front_camera",
+            "type": "Cam",
+            "originalFrameRate": 10,
+            "capturedFrameRate": 10
+          },
+          {
+            "topic": "/sensor/camera/right_rear_camera",
+            "type": "Cam",
+            "originalFrameRate": 10,
+            "capturedFrameRate": 10
+          },
+          {
+            "topic": "/sensor/lidar/front_lidar",
+            "type": "Lidar",
+            "originalFrameRate": 10,
+            "capturedFrameRate": 10
+          },
+          {
+            "topic": "/sensor/radar",
+            "type": "Radar",
+            "originalFrameRate": 10,
+            "capturedFrameRate": 10
+          },
+          {
+            "topic": "/sensor/ins",
+            "type": "other",
+            "originalFrameRate": 100,
+            "capturedFrameRate": 100
+          }
+          {
+            "topic": "/canbus/vehicle_report",
+            "type": "other",
+            "originalFrameRate": 100,
+            "capturedFrameRate": 100
+          }
+        ]
+      }
+    }
+  ]
+}
