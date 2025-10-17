@@ -1,12 +1,3 @@
-/*******************************************************************
-* Copyright (c) 2025 T3CAIC. All rights reserved.
-*
-* @file ShadowMsgBase.h
-* @brief 自定义shadow相关消息
-*
-* @author maqiang
-* @date 2025-05-09
-*******************************************************************/
 #pragma once
 
 #include <Eigen/Eigen>
@@ -15,7 +6,7 @@
 #include <memory>
 
 #include "cm/cm.h"
-#include "caic_interface.h"
+#include "ad_interface.h"
 
 namespace shadow::trigger {
 
@@ -50,7 +41,7 @@ struct ShadowDetection {
 /**
  * @brief 2d检测结果
  */
-struct ShadowDetectModelOutput : public caic_std::MessageBase {
+struct ShadowDetectModelOutput : public ad_std::MessageBase {
   int64_t stamp = -1;
   int64_t sensorStamp = -1;
   uint8_t validCnt = 0;                   // 有效的检测个数
@@ -60,7 +51,7 @@ struct ShadowDetectModelOutput : public caic_std::MessageBase {
 /**
  * @brief 算法决策输出结果
  */
-struct ShadowModelCtlOutput: public caic_std::MessageBase  {
+struct ShadowModelCtlOutput: public ad_std::MessageBase  {
   int64_t stamp = -1;
   float acc = 0.0f;                    // acc控制值
   float brake = 0.0f;                  // 制动板控制值

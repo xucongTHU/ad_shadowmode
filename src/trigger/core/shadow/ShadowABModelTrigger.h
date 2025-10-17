@@ -1,16 +1,7 @@
-/*******************************************************************
-* Copyright (c) 2025 T3CAIC. All rights reserved.
-*
-* @file ShadowABModelTrigger.h
-* @brief shadow模式：AB模型
-*
-* @author maqiang
-* @date 2025-06
-*******************************************************************/
 #pragma once
 
 // 中间件，消息接口头文件
-#include "caic_interface.h"
+#include "ad_interface.h"
 #include "cm/cm.h"
 #include "pattern/AdapterManager.hpp"
 

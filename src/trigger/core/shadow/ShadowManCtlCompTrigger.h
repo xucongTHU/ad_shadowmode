@@ -1,16 +1,7 @@
-/*******************************************************************
-* Copyright (c) 2025 T3CAIC. All rights reserved.
-*
-* @file ShadowManCtlCompTrigger.h
-* @brief 人机对比算子
-*
-* @author maqiang
-* @date 2025-07
-*******************************************************************/
 #pragma once
 
 // 中间件，消息接口头文件
-#include "caic_interface.h"
+#include "ad_interface.h"
 #include "cm/cm.h"
 #include "pattern/AdapterManager.hpp"
 
@@ -119,7 +110,7 @@ class ShadowManCtlCompTrigger : public TriggerBase {
    * @param msg canbus消息
    * @param topic 话题名
    */
-  void CanCallback(const caic_sensor::Canbus &msg, const std::string &topic);
+  void CanCallback(const ad_sensor::Canbus &msg, const std::string &topic);
 
   /**
    * @brief 清空已经保存的buffer

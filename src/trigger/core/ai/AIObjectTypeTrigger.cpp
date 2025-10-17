@@ -57,7 +57,7 @@ AIObjectTypeTrigger::AIObjectTypeTrigger(stoic::cm::NodeHandle& nh, bool fromCon
   }
 
   // 检测话题订阅
-  caicAD::cm::idl::SubscriberConf conf_;
+  synxai::cm::idl::SubscriberConf conf_;
   conf_.set_pending_queue_size(1);
   AdapterManager<AIDetectModelOutput>::SubscriberBuilder(nh)
      .topic(subTopic)

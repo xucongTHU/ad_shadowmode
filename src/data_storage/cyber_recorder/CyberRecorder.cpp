@@ -1,6 +1,6 @@
 //
 // Created by xucong on 25-5-30.
-// Copyright (c) 2025 T3CAIC. All rights reserved.
+// © 2025 Synaptix AI. All rights reserved.
 //
 
 #include "CyberRecorder.h"

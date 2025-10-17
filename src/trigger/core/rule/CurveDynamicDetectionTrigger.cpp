@@ -1,6 +1,6 @@
 //
 // Created by xucong on 24-11-27.
-// Copyright (c) 2024 T3CAIC. All rights reserved.
+// Copyright (c) 2024 Synaptix AI. All rights reserved.
 //
 
 #include "CurveDynamicDetectionTrigger.h"
@@ -26,9 +26,9 @@ bool CurveDynamicDetectionTrigger::Proc() {
 }
 
 void CurveDynamicDetectionTrigger::OnMessageReceived(const std::string& topic, const TRawMessagePtr& msg) {
-    if (topic == "/caic_pub_test/curve") {
+    if (topic == "/ad_pub_test/curve") {
         UpdateVehicleInfo(msg);
-    } else if (topic == "/caic_pub_test/EmergencyEvasionTrigger"){
+    } else if (topic == "/ad_pub_test/EmergencyEvasionTrigger"){
         UpdateVehicleInfo(msg);
     }
 

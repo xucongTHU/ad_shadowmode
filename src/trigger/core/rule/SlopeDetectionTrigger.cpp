@@ -1,6 +1,6 @@
 //
 // Created by xucong on 25-5-8.
-// Copyright (c) 2025 T3CAIC. All rights reserved.
+// © 2025 Synaptix AI. All rights reserved.
 //
 
 #include "SlopeDetectionTrigger.h"
@@ -26,7 +26,7 @@ bool SlopeDetectionTrigger::Proc() {
 
 
 void SlopeDetectionTrigger::OnMessageReceived(const std::string& topic, const TRawMessagePtr& msg) {
-    if (topic == "/caic_pub_test/snake") {
+    if (topic == "/ad_pub_test/snake") {
         UpdateVehicleInfo(msg);
     }
 

@@ -16,18 +16,18 @@ static const char* LOG_TAG = "Example";
 
 bool RsclPubExample::OnInit() {
     printf("[ExamplePubComponent] OnInit\n");
-    pub_ = InnerNode()->CreatePublisher<gac::rscl::ChassisReportMsg>("/caic_pub_test/EmergencyEvasionTrigger");
-    pub_acceleration_emergency_ = InnerNode()->CreatePublisher<senseAD::msg::vehicle::VehicleReport>("/caic_pub_test/EmergencyAcceleration");
-    pub_deceleration_emergency_ = InnerNode()->CreatePublisher<senseAD::msg::vehicle::VehicleReport>("/caic_pub_test/EmergencyDeceleration");
-    pub_nop_quit_ = InnerNode()->CreatePublisher<senseAD::msg::planning::MCUStateMachineInfo>("/caic_pub_test/nopquit");
-    pub_acc_quit_ = InnerNode()->CreatePublisher<senseAD::msg::tap::AsCmdLgSafe>("/caic_pub_test/accquit");
-    pub_snake_ = InnerNode()->CreatePublisher<senseAD::msg::vehicle::VehicleReport>("/caic_pub_test/snake");
-    pub_slope_ = InnerNode()->CreatePublisher<senseAD::msg::vehicle::VehicleReport>("/caic_pub_test/slope");
-    pub_curve_ = InnerNode()->CreatePublisher<senseAD::msg::vehicle::VehicleReport>("/caic_pub_test/curve");
-    pub_statemachine_ = InnerNode()->CreatePublisher<senseAD::msg::tap::AsCmdLgSafe>("/caic_pub_test/statemachine");
+    pub_ = InnerNode()->CreatePublisher<gac::rscl::ChassisReportMsg>("/ad_pub_test/EmergencyEvasionTrigger");
+    pub_acceleration_emergency_ = InnerNode()->CreatePublisher<senseAD::msg::vehicle::VehicleReport>("/ad_pub_test/EmergencyAcceleration");
+    pub_deceleration_emergency_ = InnerNode()->CreatePublisher<senseAD::msg::vehicle::VehicleReport>("/ad_pub_test/EmergencyDeceleration");
+    pub_nop_quit_ = InnerNode()->CreatePublisher<senseAD::msg::planning::MCUStateMachineInfo>("/ad_pub_test/nopquit");
+    pub_acc_quit_ = InnerNode()->CreatePublisher<senseAD::msg::tap::AsCmdLgSafe>("/ad_pub_test/accquit");
+    pub_snake_ = InnerNode()->CreatePublisher<senseAD::msg::vehicle::VehicleReport>("/ad_pub_test/snake");
+    pub_slope_ = InnerNode()->CreatePublisher<senseAD::msg::vehicle::VehicleReport>("/ad_pub_test/slope");
+    pub_curve_ = InnerNode()->CreatePublisher<senseAD::msg::vehicle::VehicleReport>("/ad_pub_test/curve");
+    pub_statemachine_ = InnerNode()->CreatePublisher<senseAD::msg::tap::AsCmdLgSafe>("/ad_pub_test/statemachine");
     
-    pub_meb_ =  InnerNode()->CreatePublisher<senseAD::msg::vehicle::VehicleCmd>("/caic_pub_test/meb");
-    pub_parking_ =  InnerNode()->CreatePublisher<senseAD::msg::avp_state_v3::UicFsmCmd>("/caic_pub_te st/parking");
+    pub_meb_ =  InnerNode()->CreatePublisher<senseAD::msg::vehicle::VehicleCmd>("/ad_pub_test/meb");
+    pub_parking_ =  InnerNode()->CreatePublisher<senseAD::msg::avp_state_v3::UicFsmCmd>("/ad_pub_te st/parking");
     return true;
 
 }

@@ -1,16 +1,7 @@
-/*******************************************************************
-* Copyright (c) 2025 T3CAIC. All rights reserved.
-*
-* @file AIObjectTypeTrigger.h
-* @brief 目标类型算子
-*
-* @author maqiang
-* @date 2025-06
-*******************************************************************/
 #pragma once
 
 // 中间件，消息接口头文件
-#include "caic_interface.h"
+#include "ad_interface.h"
 #include "cm/cm.h"
 #include "pattern/AdapterManager.hpp"
 

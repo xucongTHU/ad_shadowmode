@@ -57,7 +57,7 @@ AILidarVisionCompTrigger::AILidarVisionCompTrigger(stoic::cm::NodeHandle& nh,
   }
 
   // 定于视觉感知结果
-  caicAD::cm::idl::SubscriberConf conf_;
+  synxai::cm::idl::SubscriberConf conf_;
   conf_.set_pending_queue_size(1);
   AdapterManager<AIVisionModelOutput>::SubscriberBuilder(nh)
      .topic(subVisionTopic)

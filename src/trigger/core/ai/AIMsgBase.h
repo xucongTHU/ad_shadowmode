@@ -1,12 +1,3 @@
-/*******************************************************************
-* Copyright (c) 2025 T3CAIC. All rights reserved.
-*
-* @file AiMsgBase.h
-* @brief 自定义AI相关消息
-*
-* @author maqiang
-* @date 2025-05-08
-*******************************************************************/
 #pragma once
 
 #include <vector>
@@ -14,7 +5,7 @@
 #include <memory>
 
 #include "cm/cm.h"
-#include "caic_interface.h"
+#include "ad_interface.h"
 
 namespace shadow::trigger {
 
@@ -50,7 +41,7 @@ struct AIDetection {
 /**
  * @brief 2d检测结果
  */
-struct AIDetectModelOutput : public caic_std::MessageBase {
+struct AIDetectModelOutput : public ad_std::MessageBase {
   int64_t stamp = -1;
   int64_t sensorStamp = -1;
   uint8_t validCnt = 0;                   // 有效的检测个数
@@ -72,7 +63,7 @@ struct AIVisionTrackObject {
 /**
  * @brief 视觉感知结果
  */
-struct AIVisionModelOutput : public caic_std::MessageBase {
+struct AIVisionModelOutput : public ad_std::MessageBase {
   int64_t stamp = -1;
   int64_t sensorStamp = -1;
   uint8_t validCnt = 0;                              // 有效跟踪个数
@@ -95,7 +86,7 @@ struct AIDetectionLidar {
 /**
  * @brief 雷达感知结果
  */
-struct AILidarModelOutput : public caic_std::MessageBase {
+struct AILidarModelOutput : public ad_std::MessageBase {
   int64_t stamp = -1;
   int64_t sensorStamp = -1;
   uint8_t validCnt = 0;                   // 有效个数
@@ -130,7 +121,7 @@ enum class EMTimeType {
 /**
  * @brief 路况感知结果
  */
-struct AIRoadConditionOutput : public caic_std::MessageBase {
+struct AIRoadConditionOutput : public ad_std::MessageBase {
   int64_t stamp;
   int64_t sensorStamp = -1;
   EMRoadType roadType = EMRoadType::ROAD_UNSET;

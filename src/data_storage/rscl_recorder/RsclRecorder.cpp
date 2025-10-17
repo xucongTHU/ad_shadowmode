@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2025 T3CAIC Group Limited. All rights reserved.
- * Tsung Xu<xucong@t3caic.com>
+ * Copyright (c) 2025 Synaptix AI Group Limited. All rights reserved.
+ * Tsung Xu<xucong@synaptix.ai>
  */
 
 #include "RsclRecorder.h"

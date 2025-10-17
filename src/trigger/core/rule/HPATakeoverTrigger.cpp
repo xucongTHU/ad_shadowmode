@@ -1,6 +1,6 @@
 //
 // Created by xucong on 24-11-27.
-// Copyright (c) 2024 T3CAIC. All rights reserved.
+// Copyright (c) 2024 Synaptix AI. All rights reserved.
 //
 
 #include "HPATakeoverTrigger.h"
@@ -26,7 +26,7 @@ bool HPATakeoverTrigger::Proc() {
 }
 
 void HPATakeoverTrigger::OnMessageReceived(const std::string& topic, const TRawMessagePtr& msg) {
-    if (topic == "/caic_pub_te st/parking") {
+    if (topic == "/ad_pub_te st/parking") {
         UpdateVehicleInfo(msg);
     }
 

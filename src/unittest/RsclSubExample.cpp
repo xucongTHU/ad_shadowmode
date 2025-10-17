@@ -16,7 +16,7 @@ static const char* LOG_TAG = "Example";
 bool RsclSubExample::OnInit() {
     printf("[ExampleSubComponent] OnInit\n");
     suber_ = InnerNode()->CreateSubscriber<senseAD::rscl::comm::RawMessage>(
-        "/caic_pub_test/nopquit", [this](auto& msg) {
+        "/ad_pub_test/nopquit", [this](auto& msg) {
             printf("[RsclSubExample] Received /canbus/vehicle_report\n");
             NewMessageCallback(msg);
             

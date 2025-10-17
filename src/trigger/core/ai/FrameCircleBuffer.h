@@ -1,12 +1,3 @@
-/*******************************************************************
-* Copyright (c) 2025 T3CAIC. All rights reserved.
-*
-* @file FrameCircleBuffer.h
-* @brief 基于boost的循环buffer
-*
-* @author maqiang
-* @date 2025-06
-*******************************************************************/
 #pragma once
 
 #include <boost/circular_buffer.hpp>

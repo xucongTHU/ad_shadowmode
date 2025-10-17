@@ -50,7 +50,7 @@ ShadowManCtlCompTrigger::ShadowManCtlCompTrigger(stoic::cm::NodeHandle& nh, bool
   }
 
   // 订阅规划消息
-  caicAD::cm::idl::SubscriberConf conf_;
+  synxai::cm::idl::SubscriberConf conf_;
   conf_.set_pending_queue_size(1);
   AdapterManager<ShadowModelCtlOutput>::SubscriberBuilder(nh)
      .topic(subCtlTopic)
@@ -204,7 +204,7 @@ void ShadowManCtlCompTrigger::CtlCallback(const ShadowModelCtlOutput &msg, const
   }
 }
 
-void ShadowManCtlCompTrigger::CanCallback(const caic_sensor::Canbus &msg, const std::string &topic) {
+void ShadowManCtlCompTrigger::CanCallback(const ad_sensor::Canbus &msg, const std::string &topic) {
   if (debug) {
     LOG_INFO("[ShadowManCtlCompTrigger] get can msg (%s), stamp=%ld",
               topic.c_str(), msg.header.stamp);

@@ -31,7 +31,7 @@ print_banner_box() {
 # ================= 环境变量设置 ================= #
 export PROJECT="ad-shadowmode"
 export VIN="LFBGEV070LJD45885"
-export INSTALL_ROOT_PATH=$ROOT_DIR
+export AD_SHADOWMODE_INSTALL_ROOT_PATH=$ROOT_DIR
 export CAR_ID=epai007
 export LD_LIBRARY_PATH=$ROOT_DIR/lib:/opt/senseauto/senseauto-3rdparty/active/3rdparty/lib:/opt/senseauto/senseauto-rscl/active/lib:/opt/senseauto/senseauto-msgs/active/lib:$LD_LIBRARY_PATH
 

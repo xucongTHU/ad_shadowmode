@@ -1,6 +1,6 @@
 //
 // Created by xucong on 25-6-12.
-// Copyright (c) 2025 T3CAIC . All rights reserved.
+// Copyright (c) 2025 Synaptix AI . All rights reserved.
 //
 
 #ifndef SHADOW_MODE_DATA_STORAGE_H

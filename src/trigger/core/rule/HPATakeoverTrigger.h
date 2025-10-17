@@ -1,6 +1,6 @@
 //
 // Created by xucong on 24-11-27.
-// Copyright (c) 2024 T3CAIC. All rights reserved.
+// Copyright (c) 2024 Synaptix AI. All rights reserved.
 //
 
 #ifndef HPATakeover_TRIGGER_H

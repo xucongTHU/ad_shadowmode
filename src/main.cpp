@@ -1,7 +1,7 @@
 //
 // Created by xucong on 25-7-10.
-// Copyright (c) 2025 T3CAIC. All rights reserved.
-// Tsung Xu<xucong@t3caic.com>
+// © 2025 Synaptix AI. All rights reserved.
+// Tsung Xu<xucong@synaptix.ai>
 //
 
 

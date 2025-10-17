@@ -1,6 +1,6 @@
 //
 // Created by xucong on 25-5-8.
-// Copyright (c) 2025 T3CAIC. All rights reserved.
+// © 2025 Synaptix AI. All rights reserved.
 //
 
 #ifndef SHADOW_MODE_SLOPEDETECTIONTRIGGER_H
