@@ -1,0 +1,32 @@
+/*
+ * Copyright (C) 2024 by SenseTime Group Limited. All rights reserved.
+ * Kit Fung <fengzhongjie@senseauto.com>
+ */
+
+#pragma once
+
+#include <stdint.h>
+
+#include <string>
+
+namespace senseAD {
+namespace base {
+namespace common {
+
+// reference: https://github.com/abrandoned/murmur2/blob/master/MurmurHash2.c
+/* MurmurHash2, by Austin Appleby
+// Note - This code makes a few assumptions about how your machine behaves -
+// 1. We can read a 4-byte value from any address without crashing
+// 2. sizeof(int) == 4
+//
+// And it has a few limitations -
+//
+// 1. It will not work incrementally.
+// 2. It will not produce the same results on little-endian and big-endian
+//    machines.    */
+uint32_t MurmurHash2(const void *key, int len, uint32_t seed);
+std::size_t Hash(const std::string &key);
+
+}  // namespace common
+}  // namespace base
+}  // namespace senseAD

@@ -1,0 +1,96 @@
+{
+    "threadpool_scheduler": [
+        {
+            "scheduler_name": "PoolSg",
+            "thread_num": 2,
+            "thread_list": [
+                {
+                    "thread_index": 0,
+                    "schedule_policy": "SCHED_OTHER",
+                    "schedule_prio": 0,
+                    "cpu_core": [
+                        1,
+                        3,
+                        5
+                    ]
+                }
+            ],
+            "configuration": {
+                "scheduler_type": "Fair",
+                "fair_type": "ordered",
+                "priority_count": 8,
+                "wait_time_for_upgrade": 0
+            }
+        },
+        {
+            "scheduler_name": "SimpleSg",
+            "thread_num": 1,
+            "thread_list": [
+                {
+                    "thread_index": 0,
+                    "schedule_policy": "SCHED_OTHER",
+                    "schedule_prio": 0,
+                    "cpu_core": [
+                        1,
+                        3,
+                        5
+                    ]
+                }
+            ],
+            "configuration": {
+                "scheduler_type": "Simple",
+                "fair_type": "ordered",
+                "priority_count": 8,
+                "wait_time_for_upgrade": 0
+            }
+        }
+    ],
+    "timer_scheduler": [
+        {
+            "scheduler_name": "TimeSg",
+            "thread_num": 2,
+            "thread_list": [
+                {
+                    "thread_index": 0,
+                    "schedule_policy": "SCHED_RR",
+                    "schedule_prio": 1,
+                    "cpu_core": [
+                        7
+                    ]
+                }
+            ],
+            "configuration": {
+                "timer_thread": {
+                    "schedule_policy": "SCHED_FIFO",
+                    "schedule_prio": 29,
+                    "cpu_core": [
+                        0
+                    ]
+                }
+            }
+        }
+    ],
+    "global_scheduler": {
+        "enable": true,
+        "scheduler_name": "GlobalSg",
+        "thread_pool_num": 1,
+        "thread_pool_policy": "SCHED_OTHER",
+        "thread_pool_prio": 0,
+        "thread_pool_cpu_set": [],
+        "persistent_task_list": [
+            {
+                "persistent_task_name": "XXX",
+                "persistent_task_policy": "SCHED_OTHER",
+                "persistent_task_priority": 0,
+                "persistent_task_cpuset": [],
+                "persistent_task_threadname": "YYY"
+            }
+        ],
+        "common_task_list": [
+            {
+                "task_name": "xxxx",
+                "task_priority": 0
+            }
+        ]
+    }
+}

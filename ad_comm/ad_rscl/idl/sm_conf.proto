@@ -1,0 +1,13 @@
+syntax = "proto2";
+
+package senseAD.rscl.idl;
+
+message RecordStatus {
+  required bool is_start_record = 1 [default = false];
+  required bool is_recording = 2 [default = false];
+};
+
+message SMStatus {
+  required bool init_flag = 1 [default = false];
+  required RecordStatus record_status = 2;
+};

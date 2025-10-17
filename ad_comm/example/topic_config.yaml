@@ -1,0 +1,8 @@
+# dynamic library path: defines the path to the dynamic library.
+# like: /home/xxx/xxx.so or ../include/xxx.so
+dynamic-library-paths:
+  - ./libbridge_demo.so
+
+bridges:
+  - key: "/msgbridge/demo" # local
+    message-type: BridgeDemo # custom class name, for dynamic load.

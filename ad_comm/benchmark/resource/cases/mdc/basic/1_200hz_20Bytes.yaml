@@ -1,0 +1,16 @@
+description: "200hz 20bytes, simulate sim_time topic 1-1"
+case_content:
+  - node_name: "node_a"
+    timeout_s: 60
+    pubs:
+    - channel_name: "/canbus/vehicle_command"
+      hz: 200
+      message_size: 20
+      reliability: "best_effort"
+  - node_name: "node_b"
+    # sub timeout should be a little larger than pub
+    timeout_s: 70
+    subs:
+    - channel_name: "/canbus/vehicle_command"
+      queue_size: 10
+      reliability: "best_effort"

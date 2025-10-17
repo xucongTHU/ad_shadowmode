@@ -1,0 +1,10 @@
+syntax = "proto2";
+
+package senseAD.rscl.idl;
+
+message BufPublisherConf {
+    required string channel_name = 1;
+};
+message BufSubscriberConf {
+    required string channel_name = 1;
+}

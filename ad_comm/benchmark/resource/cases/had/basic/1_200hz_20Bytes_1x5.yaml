@@ -1,0 +1,44 @@
+description: "1 pub, 5 sub, simulate sim_time topic 1-5"
+case_content:
+  - node_name: "node_a"
+    timeout_s: 60
+    pubs:
+    - channel_name: "/benchmark_channel"
+      hz: 200
+      message_size: 20
+      reliability: "best_effort"
+  - node_name: "node_b"
+    # sub timeout should be a little larger than pub
+    timeout_s: 70
+    subs:
+    - channel_name: "/benchmark_channel"
+      queue_size: 10
+      reliability: "best_effort"
+  - node_name: "node_c"
+    # sub timeout should be a little larger than pub
+    timeout_s: 70
+    subs:
+    - channel_name: "/benchmark_channel"
+      queue_size: 10
+      reliability: "best_effort"
+  - node_name: "node_d"
+    # sub timeout should be a little larger than pub
+    timeout_s: 70
+    subs:
+    - channel_name: "/benchmark_channel"
+      queue_size: 10
+      reliability: "best_effort"
+  - node_name: "node_e"
+    # sub timeout should be a little larger than pub
+    timeout_s: 70
+    subs:
+    - channel_name: "/benchmark_channel"
+      queue_size: 10
+      reliability: "best_effort"
+  - node_name: "node_f"
+    # sub timeout should be a little larger than pub
+    timeout_s: 70
+    subs:
+    - channel_name: "/benchmark_channel"
+      queue_size: 10
+      reliability: "best_effort"

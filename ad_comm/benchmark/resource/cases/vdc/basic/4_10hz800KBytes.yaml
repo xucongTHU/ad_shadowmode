@@ -1,0 +1,13 @@
+- node_name: "node_a"
+  timeout_s: 60
+  pubs:
+  - channel_name: "/benchmark_channel"
+    hz: 10
+    message_size: 800000
+    reliability: "best_effort"
+- node_name: "node_b"
+  timeout_s: 70
+  subs:
+  - channel_name: "/benchmark_channel"
+    queue_size: 10
+    reliability: "best_effort"

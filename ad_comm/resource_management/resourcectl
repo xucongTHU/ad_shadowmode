@@ -1,0 +1,117 @@
+#!/bin/sh
+set -e
+
+SCRIPT_FILE=$0
+BASE=resourcectl-service
+BIN=/opt/senseauto_active/senseauto-rscl/resource_management/resourcectl_service.py
+BIN_DESC="Resource management service"
+BIN_OPTS=""
+DEBUG_TOOL=/opt/senseauto_active/senseauto-rscl/resource_management/resourcectl_debug.py
+SCHED_TOOL=/opt/senseauto_active/senseauto-rscl/resource_management/scripts/modify_sched.py
+#PIDFILE=/var/run/$BASE.pid
+SSD_PIDFILE=/var/run/$BASE-ssd.pid
+LOGFILE=/var/log/$BASE.log
+SCHED_LOGFILE=/var/log/$BASE-sched.log
+
+# Get lsb functions
+. /lib/lsb/init-functions
+
+fail_unless_root() {
+  if [ "$(id -u)" != '0' ]; then
+    log_failure_msg "$BIN_DESC must be run as root"
+    exit 1
+  fi
+}
+exit_if_running() {
+  set +e
+  service_pid=`cat "$SSD_PIDFILE" 2>/dev/null`
+  [ -n "$service_pid" ] \
+    && ps -p $service_pid > /dev/null 2>&1
+  if [ $? -eq 0 ]; then
+    echo "Process is already running" \
+      && exit 0
+  fi
+  set -e
+}
+stop_if_running() {
+  set +e
+  service_pid=`cat "$SSD_PIDFILE" 2>/dev/null`
+  [ -n "$service_pid" ] \
+    && ps -p $service_pid > /dev/null 2>&1 \
+    && $SCRIPT_FILE stop
+  set -e
+}
+
+case "$1" in
+  start)
+    fail_unless_root
+    exit_if_running
+    chmod +x $BIN
+    log_begin_msg "Starting $BIN_DESC: $BASE"
+    # Set IRQ
+    mkdir -p /opt/senseauto_active/senseauto-rscl/resource_management/conf/
+    python3 /opt/senseauto_active/senseauto-rscl/resource_management/scripts/set_irq_interface.py save_irq_conf > /dev/null 2>&1
+    python3 /opt/senseauto_active/senseauto-rscl/resource_management/scripts/batch_set_irq.py > /dev/null 2>&1
+    # Actual Service
+    start-stop-daemon --start --background \
+      --no-close \
+      --exec "$BIN" \
+      --pidfile "$SSD_PIDFILE" \
+      --make-pidfile \
+      -- \
+        $BIN_OPTS \
+          >> "$LOGFILE" 2>&1
+    log_end_msg $?
+    ;;
+
+  stop)
+    fail_unless_root
+    if [ -f "$SSD_PIDFILE" ]; then
+      log_begin_msg "Stopping $BIN_DESC: $BASE"
+      start-stop-daemon --stop --pidfile "$SSD_PIDFILE" --retry 10
+      log_end_msg $?
+    else
+      log_warning_msg "Service already stopped - file $SSD_PIDFILE not found."
+    fi
+    killall -9 cgrulesengd
+    rm -f /etc/cgrules.conf /etc/cgconfig.conf $SSD_PIDFILE
+    # Reset irq
+    python3 /opt/senseauto_active/senseauto-rscl/resource_management/scripts/set_irq_interface.py reset > /dev/null 2>&1
+    ;;
+
+  restart)
+    fail_unless_root
+    stop_if_running
+    $SCRIPT_FILE start
+    log_end_msg $?
+    ;;
+
+  status)
+    status_of_proc -p "$SSD_PIDFILE" "$BIN" "$BIN_DESC"
+    ;;
+
+  log)
+    tail -n 100 $LOGFILE
+    ;;
+
+  debug)
+    fail_unless_root
+    python3 $DEBUG_TOOL /etc/cgrules.conf
+    ;;
+
+  set_sched)
+    echo "Enable aggressive scheduling"
+    fail_unless_root
+    python3 $SCHED_TOOL >> SCHED_LOGFILE 2>&1
+    ;;
+
+  delay_set_sched)
+    fail_unless_root
+    python3 $SCHED_TOOL 60 >> SCHED_LOGFILE 2>&1 &
+    ;;
+
+  *)
+    echo "Usage: service docker {start|stop|restart|status|log|debug|set_sched|delay_set_sched}"
+    exit 1
+    ;;
+esac

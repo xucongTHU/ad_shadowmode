@@ -1,0 +1,11 @@
+- node_name: "node_a"
+  pubs:
+  - channel_name: "channel_1"
+    hz: 20
+    message_size: 29491200
+    mode: cuda
+- node_name: "node_b"
+  subs:
+  - channel_name: "channel_1"
+    queue_size: 10
+    mode: cuda

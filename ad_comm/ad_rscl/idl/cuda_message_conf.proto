@@ -1,0 +1,13 @@
+syntax = "proto2";
+
+package senseAD.rscl.idl;
+
+message CudaPublisherConf {
+    required string channel_name = 1;
+    required uint64 buffer_size = 2 [default = 16777216]; // Ceil size of each element
+    required uint64 depth = 3 [default = 1];  // capacity of history
+    required uint64 device_id = 4 [default = 0];
+};
+message CudaSubscriberConf {
+    required string channel_name = 1;
+}

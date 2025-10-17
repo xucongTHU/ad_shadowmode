@@ -1,0 +1,27 @@
+syntax = "proto2";
+
+package senseAD.rscl.idl;
+
+import "ad_rscl/idl/rscl_qos_profile.proto";
+
+message ReaderOption {
+    optional string channel = 1;
+    optional QosProfile qos_profile =
+        2;  // depth: used to define capacity of processed messages
+    optional uint32 pending_queue_size = 3
+        [default = 1];  // used to define capacity of unprocessed messages
+}
+
+message SyncedComponentConfig {
+    optional string name = 1;
+    map<string, string> custom_param = 2;
+    repeated ReaderOption readers = 3;
+}
+
+message TimerComponentConfig {
+    optional string name = 1;
+    map<string, string> custom_param = 2;
+    optional uint32 interval_ms = 3;  // In milliseconds.
+
+    optional bool sim_time_interval = 4 [default = true];
+}

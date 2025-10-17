@@ -1,0 +1,14 @@
+syntax = "proto2";
+
+package senseAD;
+
+import "ad_mw/proto/runtime_conf.proto";
+
+// Load from /opt/senseauto_active/senseauto-config/resource_cfg/
+message RuntimeResourceConfig {
+    map<string, senseAD.mw.proto.RuntimeConfig> process_resource_conf = 1;
+
+    // This flag enable underlying debug flag
+    optional bool debug_mode = 2 [default = false];
+    optional bool unittest_mode = 3 [default = false];
+}

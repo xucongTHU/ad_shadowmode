@@ -1,0 +1,170 @@
+
+#proto 中enum定义如下:
+
+
+enum MainAction_Type {
+    MainActionNULL = 0;                // No main navigation action
+    MainActionTurnLeft = 1;            // Turn left
+    MainActionTurnRight = 2;           // Turn right
+    MainActionSlightLeft = 3;          // Go slightly left
+    MainActionSlightRight = 4;         // Go slightly right
+    MainActionTurnHardLeft = 5;        // Go hard left
+    MainActionTurnHardRight = 6;       // Go hard right
+    MainActionUTurn = 7;               // Make a U-turn
+    MainActionContinue = 8;            // Go straight
+    MainActionMergeLeft = 9;           // Merge left
+    MainActionMergeRight = 10;         // Merge right
+    MainActionEntryRing = 11;          // Enter roundabout
+    MainActionLeaveRing = 12;          // Exit roundabout
+    MainActionSlow = 13;               // Slow down
+    MainActionPlugContinue = 14;       // Insert straight
+    MainActionEnterBuilding = 65;      // Enter building
+    MainActionLeaveBuilding = 66;      // Leave building
+    MainActionByElevator = 67;         // Change floors by elevator
+    MainActionByStair = 68;            // Change floors by stairs
+    MainActionByEscalator = 69;        // Change floors by escalator
+    MainActionCount = 70;              // Max count of main actions
+    AUTO_UNKNOWN_ERROR = 71;  // Illegal operation error
+}
+
+enum AmapAssiType {
+    ASSI_ACTION_NULL = 0;               // No auxiliary navigation action
+    ASSI_ACTION_ENTRY_MAIN = 1;         // Enter the main road
+    ASSI_ACTION_ENTRY_SIDE_ROAD = 2;    // Enter a side road
+    ASSI_ACTION_ENTRY_FREEWAY = 3;      // Enter the freeway
+    ASSI_ACTION_ENTRY_SLIP = 4;         // Enter a slip road
+    ASSI_ACTION_ENTRY_TUNNEL = 5;       // Enter a tunnel
+    ASSI_ACTION_ENTRY_CENTER_BRANCH = 6; // Enter the center branch road
+    ASSI_ACTION_ENTRY_RIGHT_BRANCH = 7; // Enter the right branch road
+    ASSI_ACTION_ENTRY_LEFT_BRANCH = 8;  // Enter the left branch road
+    ASSI_ACTION_ENTRY_RIGHT_ROAD = 9;   // Enter the right turn lane
+    ASSI_ACTION_ENTRY_LEFT_ROAD = 10;   // Enter the left turn lane
+    ASSI_ACTION_ENTRY_MERGE_CENTER = 11; // Merge into the center road
+    ASSI_ACTION_ENTRY_MERGE_RIGHT = 12; // Merge into the right road
+    ASSI_ACTION_ENTRY_MERGE_LEFT = 13;  // Merge into the left road
+    ASSI_ACTION_ENTRY_MERGE_RIGHT_Sild = 14; // Keep right to merge into a side road
+    ASSI_ACTION_ENTRY_MERGE_LEFT_Sild = 15; // Keep left to merge into a side road
+    ASSI_ACTION_ENTRY_MERGE_RIGHT_MAIN = 16; // Keep right to merge into the main road
+    ASSI_ACTION_ENTRY_MERGE_LEFT_MAIN = 17; // Keep left to merge into the main road
+    ASSI_ACTION_ENTRY_MERGE_RIGHT_RIGHT = 18; // Keep right to merge into the right turn lane
+    ASSI_ACTION_ENTRY_FERRY = 19;       // Enter a ferry route
+    ASSI_ACTION_LEFT_FERRY = 20;        // Leave the ferry
+    ASSI_ACTION_ALONG_ROAD = 23;        // Continue along the current road
+    ASSI_ACTION_ALONG_SILD = 24;        // Continue along the side road
+    ASSI_ACTION_ALONG_MAIN = 25;        // Continue along the main road
+    ASSI_ACTION_ARRIVE_EXIT = 32;       // Arrive at the exit
+    ASSI_ACTION_ARRIVE_SERVICE_AREA = 33; // Arrive at the service area
+    ASSI_ACTION_ARRIVE_TOLL_GATE = 34;  // Arrive at the toll gate
+    ASSI_ACTION_ARRIVE_WAY = 35;        // Arrive at a waypoint
+    ASSI_ACTION_ARRIVE_DESTINATION = 36; // Arrive at the destination
+    ASSI_ACTION_ARRIVE_CHARGING_STATION = 37; // Arrive at a charging station (for electric vehicles)
+    ASSI_ACTION_ENTRY_RING_LEFT_ = 48;  // Enter the roundabout, turn left
+    ASSI_ACTION_ENTRY_RING_RIGHT = 49;  // Enter the roundabout, turn right
+    ASSI_ACTION_ENTRY_RING_CONTINUE = 50; // Enter the roundabout, go straight
+    ASSI_ACTION_ENTRY_RING_UTURN = 51;  // Enter the roundabout, make a U-turn
+    ASSI_ACTION_SMALL_RING_NOT_COUNT = 52; // Do not count exits in small roundabouts
+    ASSI_ACTION_RIGHT_BRANCH_1 = 64;    // Arrive at a complex junction, take the first right exit
+    ASSI_ACTION_RIGHT_BRANCH_2 = 65;    // Arrive at a complex junction, take the second right exit
+    ASSI_ACTION_RIGHT_BRANCH_3 = 66;    // Arrive at a complex junction, take the third right exit
+    ASSI_ACTION_RIGHT_BRANCH_4 = 67;    // Arrive at a complex junction, take the fourth right exit
+    ASSI_ACTION_RIGHT_BRANCH_5 = 68;    // Arrive at a complex junction, take the fifth right exit
+    ASSI_ACTION_LEFT_BRANCH_1 = 69;     // Arrive at a complex junction, take the first left exit
+    ASSI_ACTION_LEFT_BRANCH_2 = 70;     // Arrive at a complex junction, take the second left exit
+    ASSI_ACTION_LEFT_BRANCH_3 = 71;     // Arrive at a complex junction, take the third left exit
+    ASSI_ACTION_LEFT_BRANCH_4 = 72;     // Arrive at a complex junction, take the fourth left exit
+    ASSI_ACTION_LEFT_BRANCH_5 = 73;     // Arrive at a complex junction, take the fifth left exit
+    ASSI_ACTION_ENTER_ULINE = 80;       // Enter a U-turn specific road
+    ASSI_ACTION_PASS_CROSSWalk = 90;    // Pass a pedestrian crosswalk
+    ASSI_ACTION_PASS_OVERPASS = 91;     // Pass an overpass
+    ASSI_ACTION_PASS_UNDERGROUND = 92;  // Pass an underground passage
+    ASSI_ACTION_PASS_SQUARE = 93;       // Pass a square
+    ASSI_ACTION_PASS_PARK = 94;         // Pass a park
+    ASSI_ACTION_PASS_STAIRCASE = 95;    // Pass an escalator
+    ASSI_ACTION_PASS_LIFT = 96;         // Pass an elevator
+    ASSI_ACTION_PASS_CABLEWAY = 97;     // Pass a cableway
+    ASSI_ACTION_PASS_SKY_CHANNEL = 98;  // Pass a sky channel
+    ASSI_ACTION_PASS_CHANNEL = 99;      // Pass a building crossing channel
+    ASSI_ACTION_PASS_WALKROAD = 100;    // Pass a pedestrian road
+    ASSI_ACTION_PASS_BOAT_LINE = 101;   // Pass a boat route
+    ASSI_ACTION_PASS_SIGHT_SEEING_LINE = 102; // Pass a sightseeing vehicle route
+    ASSI_ACTION_PASS_SKIDWAY = 103;     // Pass a slide route
+    ASSI_ACTION_PASS_LADDER = 105;      // Pass a staircase
+    ASSI_ACTION_PASS_SLOPE = 106;       // Pass a slope
+    ASSI_ACTION_PASS_BRIDGE = 107;      // Pass a bridge
+    ASSI_ACTION_PASS_FERRY = 108;       // Pass a ferry route
+    ASSI_ACTION_PASS_SUBWAY = 109;      // Pass a subway passage
+    ASSI_ACTION_SOON_ENTER_Building = 112; // Soon to enter a building (currently not dispatched)
+    ASSI_ACTION_SOON_LEAVE_Building = 113; // Soon to leave a building (currently not dispatched)
+    ASSI_ACTION_ENTER_ROUNDABOUT = 114; // Enter a roundabout (for biking/walking)
+    ASSI_ACTION_LEAVE_ROUNDABOUT = 115; // Leave a roundabout (for biking/walking)
+    ASSI_ACTION_ENTER_PATH = 116;       // Enter a path
+    ASSI_ACTION_ENTER_INNER = 117;      // Enter an inner road
+    ASSI_ACTION_ENTER_LEFT_BRANCH_TWO = 118; // Enter the second left branch
+    ASSI_ACTION_ENTER_LEFT_BRANCH_THREE = 119; // Enter the third left branch
+    ASSI_ACTION_ENTER_RIGHT_BRANCH_TWO = 120; // Enter the second right branch
+    ASSI_ACTION_ENTER_RIGHT_BRANCH_THREE = 121; // Enter the third right branch
+    ASSI_ACTION_ENTER_GAS_STATION = 122; // Enter the gas station road
+    ASSI_ACTION_ENTER_HOUSING_ESTATE = 123; // Enter a residential estate road
+    ASSI_ACTION_ENTER_PARK_ROAD = 124;  // Enter a park road
+    ASSI_ACTION_ENTER_OVERHEAD = 125;   // Go onto an elevated road
+    ASSI_ACTION_ENTER_CENTER_BRANCH_OVERHEAD = 126; // Take the center branch to go onto an elevated road
+    ASSI_ACTION_ENTER_RIGHT_BRANCH_OVERHEAD = 127; // Take the rightmost branch to go onto an elevated road
+    ASSI_ACTION_ENTER_LEFT_BRANCH_OVERHEAD = 128; // Take the leftmost branch to go onto an elevated road
+    ASSI_ACTION_ALONG_STRAIGHT = 129;   // Go straight along the current road
+    ASSI_ACTION_DOWN_OVERHEAD = 130;    // Go down from an elevated road
+    ASSI_ACTION_ENTER_LEFT_OVERHEAD = 131; // Take the left road onto an elevated road
+    ASSI_ACTION_ENTER_RIGHT_OVERHEAD = 132; // Take the right road onto an elevated road
+    ASSI_ACTION_UP_TO_BRIDGE = 133;     // Go up to a bridge
+    ASSI_ACTION_ENTER_PARKING = 134;    // Enter a parking lot
+    ASSI_ACTION_ENTER_OVERPASS = 135;   // Enter an overpass
+    ASSI_ACTION_ENTER_BRIDGE = 136;     // Enter a bridge
+    ASSI_ACTION_ENTER_UNDERPASS = 137;  // Enter an underpass
+}
+
+
+enum AmapRoadClass {
+    ROAD_CLASS_HIGHWAY = 0;            // Highway
+    ROAD_CLASS_NATIONALWAY = 1;        // National Road
+    ROAD_CLASS_PROVINCIALWAY = 2;      // Provincial Road
+    ROAD_CLASS_COUNTYLWAY = 3;         // County Road
+    ROAD_CLASS_TOWNWAY = 4;            // Township Road
+    ROAD_CLASS_COUNTYANDTOWNLWAY = 5;  // Internal roads in county and village
+    ROAD_CLASS_EXPRESSWAY = 6;         // Major street, urban expressway
+    ROAD_CLASS_MAINWAY = 7;            // Main road
+    ROAD_CLASS_MINORWAY = 8;           // Minor road
+    ROAD_CLASS_COMMONWAY = 9;          // Regular road
+    ROAD_CLASS_NONAVIWAY = 10;         // Non-navigational road
+}
+
+enum AmapRoadType {
+    ROAD_TYPE_NONE = 0;                  // No definition (value: 0)
+    ROAD_TYPE_DivisedLink = 1;           // Main road
+    ROAD_TYPE_CrossLink = 2;             // Internal road at an intersection
+    ROAD_TYPE_JCT = 3;                   // JCT road
+    ROAD_TYPE_RoundCircle = 4;           // Roundabout
+    ROAD_TYPE_ServiceRoad = 5;           // Service area
+    ROAD_TYPE_SlipRoad = 6;              // Slip road
+    ROAD_TYPE_SideRoad = 7;              // Side road
+    ROAD_TYPE_SlipJCT = 8;               // Slip road with JCT
+    ROAD_TYPE_ExitLink = 9;              // Exit road
+    ROAD_TYPE_EntranceLink = 10;         // Entrance road
+    ROAD_TYPE_TurnRightLineA = 11;       // Type A right turn lane
+    ROAD_TYPE_TurnRightLineB = 12;       // Type B right turn lane
+    ROAD_TYPE_TurnLeftLineA = 13;        // Type A left turn lane
+    ROAD_TYPE_TurnLeftLineB = 14;        // Type B left turn lane
+    ROAD_TYPE_CommonLink = 15;           // Regular road
+    ROAD_TYPE_TurnLeftRightLine = 16;    // Left and right turn lane
+    ROAD_TYPE_NonMotorizedVehicleLine = 17; // Lane for non-motorized vehicles
+    ROAD_TYPE_ServiceJCTRoad = 53;       // Service area and JCT road
+    ROAD_TYPE_ServiceSlipRoad = 56;      // Service area and slip road
+    ROAD_TYPE_ServiceSlipJCTRoad = 58;   // Service area, slip road, and JCT
+    ROAD_TYPE_BusRoad = 59;              // Bus-only road
+}
+
+enum AmapLinkType {
+    ORDINARY_TYPE = 0;    // Ordinary road
+    CHANNEL_TYPE = 1;     // Channel
+    TUNNEL_TYPE = 2;      // Tunnel
+    BRIDGE_TYPE = 3;      // Bridge
+    VIADUCT_TYPE = 4;     // Viaduct
+}

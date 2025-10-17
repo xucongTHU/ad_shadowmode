@@ -1,0 +1,4 @@
+set(AdMsgIDL_PATH "/opt/senseauto/senseauto-msgs/active")
+
+list(APPEND ADMsgIDL_INCLUDE_DIRS "${SENSEAUTO_DEV_INSTALLED_ROOT}/${AdMsgIDL_PATH}/include")
+list(APPEND ADMsgIDL_LIBRARY_DIRS "${SENSEAUTO_DEV_INSTALLED_ROOT}/${AdMsgIDL_PATH}/lib")

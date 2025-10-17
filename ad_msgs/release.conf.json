@@ -1,5 +1,5 @@
 {
-            "MODULE_VERSION": "1.20250919-085025-1bd89.thor.default.8d4e16.l29-base-thor",
+            "MODULE_VERSION": "1.20250717-001040-46c7d.pilotmdc-rscl-new.default.7a9fa3.pilotrscl-thor-dev-new",
             "BUILDTOOLS_TARGET_PLATFORM": "thor",
             "PROJECT_NAME": "senseauto-msgs",
             "AD_CROSS_COMPILE": "ON",

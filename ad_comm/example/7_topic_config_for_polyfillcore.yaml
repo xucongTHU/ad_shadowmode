@@ -1,0 +1,15 @@
+# dynamic library path: defines the path to the dynamic library.
+# like: /home/xxx/xxx.so or ../include/xxx.so
+dynamic-library-paths:
+  - ./libbridge_demo.so
+
+bridges:
+  - key: "/msgbridge/demo" # local
+    message-type: BridgeDemo # custom class name, for dynamic load.
+
+polyfill_core_forward:
+  rscl_to_bridge:
+    - "/msgbridge/demo"
+
+# rscl_polyfill_core --topic_config_file ./7_topic_config_for_polyfillcore.yaml --enable_external_msg_forward
+# /opt/senseauto_active/senseauto-rscl/example/7_pub_for_demo

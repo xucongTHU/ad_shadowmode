@@ -1,0 +1,18 @@
+# cross_system {
+#  hostname: "pc"
+#
+#  endpoint {
+#    hostname: "mdc"
+#    ip: "$(optenv DAEMON_slave_ip)"
+#  }
+#}
+
+
+# cross_system {
+#  hostname: "mdc"
+#
+#  endpoint {
+#    hostname: "pc"
+#    ip: "$(optenv DAEMON_master_ip)"
+#  }
+#}

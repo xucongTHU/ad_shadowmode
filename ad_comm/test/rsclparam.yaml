@@ -1,0 +1,183 @@
+camera:
+  camera_freq_hz: 10.0
+  camera_idx:
+  - 0
+  camera_names:
+  - center_camera
+  camera_pub_image_height: 216
+  camera_pub_image_width: 384
+  camera_pub_raw_image: true
+  camera_pub_rectify_image: true
+  camera_type: acA1920-40gc
+  is_enable_rectify: true
+canbus:
+  can_client_baudrate: 500K
+  can_client_params: can9p1
+  can_client_type: SOCKETCAN
+  vehicle_type: LINCOLNMKZ_FMT
+control:
+  control_config_file: hmp_control_config.json
+  controller_type: HMP_CONTROLLER
+  vehicle_type: LINCOLNMKZ_FMT
+ins:
+  ins_buffer_size: 100
+  ins_data_size: 1024
+  ins_log_rate: 2.0
+  ins_names:
+  - rear_center_ins_novatel
+  ins_timeout: 10
+  rear_center_ins_bynav:
+    ins_config_commands:
+    - '# following three logs for online localization'
+    - log bestgnssposb ontime 1
+    - log bestgnssvelb ontime 1
+    - log inspvab ontime 0.01
+    - log rawimuxb onnew
+    - '# following for offline usage'
+    - log bestposb ontime 1
+    - log headingb ontime 0.05
+    - '# following for post process'
+    - log rangecmpb ontime 1
+    - log rawephemb ontime 300
+    - log gloephemerisb ontime 300
+    - log bdsephemerisb ontime 300
+    - log heading2b onchanged
+    - '# hope no exception...'
+    - saveconfig
+    ins_connect_type: TCP
+    ins_ip: 192.168.22.110
+    ins_port: '3002'
+    ins_type: BYNAV
+  rear_center_ins_huace:
+    ins_client_baudrate: 2M
+    ins_client_params: can2
+    ins_client_type: SOCKETCAN
+    ins_config_commands:
+    - '# following three logs for online localization'
+    - log bestgnssposb ontime 1
+    - log bestgnssvelb ontime 1
+    - log inspvab ontime 0.01
+    - log rawimuxb ontime 0.01
+    - '# hope no exception...'
+    - saveconfig
+    ins_connect_type: CANFD
+    ins_type: HUACE
+  rear_center_ins_novatel:
+    ins_baudrate: 115200
+    ins_config_commands:
+    - '# following three logs for online localization'
+    - log bestgnssposb ontime 1
+    - log bestgnssvelb ontime 1
+    - log inspvab ontime 0.01
+    - log rawimuxb onnew
+    - '# following for offline usage'
+    - log bestposb ontime 1
+    - log dualantennaheadingb ontime 0.05
+    - '# following for post process'
+    - log rangecmpb ontime 1
+    - log rawephemb ontime 300
+    - log gloephemerisb ontime 300
+    - log bdsephemerisb ontime 300
+    - log heading2b onchanged
+    - '# hope no exception...'
+    - saveconfig
+    ins_connect_type: SERIAL
+    ins_device_no: /dev/ttyUSB0
+    ins_type: NOVATEL
+lidar:
+  lidar_front_angle: 0
+  lidar_soft_sync_camera_frame: center_camera
+  lidar_split_angle: 270
+  lidar_timer_frequency: 10.0
+  lidar_tolerated_split_offset: 12
+  lidar_use_device_time: false
+  lidar_use_soft_sync: false
+localization:
+  back_locator_type: GNSS_LMM
+  front_locator_type: IMU
+  ins_names:
+  - rear_center_ins_novatel
+  ins_types:
+  - NOVATEL
+perception_aggregator:
+  camera_names:
+  - center_camera
+  is_radar_enabled: false
+  pipeline_param_file: ./perception_aggregator/gpu/l4/lidar_radar_aggregator_test_graph_tracker_pipeline.prototxt
+perception_camera:
+  camera_names:
+  - center_camera
+  pipeline_param_file: ./config/perception_camera/gpu/l4/traffic_light_process_pipeline_center_camera.prototxt
+perception_camera_od:
+  camera_names:
+  - center_camera
+  data_publisher_types:
+  - object_detection
+  - road_structure
+  pipeline_param_file: ./config/perception_camera/gpu/l4/center_camera_fov60_perception.prototxt
+perception_camera_ra:
+  camera_names:
+  - center_camera
+  data_publisher_types:
+  - road_area
+  pipeline_param_file: ./config/perception_camera/gpu/common/perception_road_area_pipeline_center_camera.prototxt
+perception_camera_tl:
+  camera_names:
+  - center_camera
+  data_publisher_types:
+  - traffic_light
+  - traffic_light_raw_object
+  pipeline_param_file: ./config/perception_camera/gpu/l4/traffic_light_process_pipeline_center_camera.prototxt
+perception_camera_visual:
+  camera_names:
+  - center_camera
+perception_radar:
+  pipeline_param_files:
+  - ./config/perception_radar/gpu/common/unified_hw_front_radar_ars408_pipeline.prototxt
+  radar_frame_ids:
+  - front_radar
+  radar_types:
+  - ContinentalARS408
+platform: pc
+radar:
+  can_client_baudrate: 500K
+  can_client_device: can.socket
+  can_client_params:
+  - can8p0
+  - can8p1
+  - can8p1
+  - can9p0
+  - can9p0
+  can_client_type: SOCKETCAN
+  can_message_timer: 0.05
+  is_get_veh_info_from_canbus: true
+  radar_idx:
+  - 0
+  - 0
+  - 1
+  - 0
+  - 1
+  radar_names:
+  - front_radar
+  - front_left_radar
+  - front_right_radar
+  - rear_left_radar
+  - rear_right_radar
+  radar_types:
+  - Continental408Radar
+  - Continental308Radar
+  - Continental308Radar
+  - Continental308Radar
+  - Continental308Radar
+  send_vehicle_info_rate: 50
+rosdistro: 'kinetic
+
+  '
+roslaunch:
+  uris:
+    host_cn_017__37729: http://CN-017:37729/
+rosversion: '1.12.17
+
+  '
+run_id: 5844206e-29bc-11ed-910e-6cb31136a410
+vehicle_id: CN-017

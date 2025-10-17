@@ -1,0 +1,17 @@
+syntax = "proto2";
+
+package senseAD.rscl.idl;
+
+enum SupportedHeteroChannel {
+    UNKNOWN = 0;
+    ZMQ_FORWARD_PUB = 1;
+    ZMQ_FORWARD_SUB = 2;
+}
+
+message ZmqForwardChannelConfig {
+    required string receive_ip = 1;
+    optional uint32 base_port = 2 [default = 5432];
+
+    // Only for the sub side
+    optional string tcp_accept_address = 3;
+}

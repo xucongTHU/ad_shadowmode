@@ -1,0 +1,555 @@
+@0xb1a6c775b03a2bb2;
+
+using Cxx = import "/capnp/c++.capnp";
+$Cxx.namespace("senseAD::msg::navigation");
+
+using Header = import "/ad_msg_idl/std_msgs/header.capnp";
+using Geo = import "/ad_msg_idl/std_msgs/geometry.capnp";
+
+struct GlobalRouteList {
+  steps @0 :List(NavStep);                  # 导航段(Segment)的集合
+  routeLength @1 :UInt32;                   # 导航路线的距离
+  id @2 : UInt32;                      # 导航段id，这里定义有点奇怪，后续根据数据确认是否为路线id
+}
+
+# 这里需要注意，导航侧定义的坐标点是int32，startPoint/endPoint收到的坐标小数点需要左移5位
+struct NavStep {
+  stepId @0 :UInt32;                            # 导航段ID
+  length @1 :UInt32;                        # 导航段长度[m]
+  startPoint @2 :Geo.Point;                 # 导航段起点坐标
+  endPoint @3 :Geo.Point;                   # 导航段终点坐标
+  mainAction @4 :MainAction;                # 基本导航动作，如左转、右转、直行等
+  assistantAction @5 :AssistantAction;      # 辅助导航动作，进入辅路，进入隧道等
+  links @6 :List(Link);                     # 导航段的link串
+}
+
+# 这里需要注意，导航侧定义的坐标点是int32，geometry收到的坐标小数点需要左移5位
+struct Link {
+  linkId @0 :UInt32;                        # 道路Id
+  length @1 :UInt32;                        # 道路长度
+  roadClass @2 :RoadClass;                  # 道路等级
+  formway @3 :Formway;                      # 道路类型
+  linkType @4 :LinkType;                    # Link类型
+  linkName @5 :Text;                        # link所在道路名称
+  speedLimit @6 :UInt8;                     # 道路限速
+  laneNum @7 :UInt8;                        # 车道数量,行驶方向的车道数量
+  avgSpeed @8 :UInt8;                       # 平均车速
+  isInnerRd @9 :Bool;                       # 是否为内部道路
+  isRestricted @10 :Bool;                   # 是否为限行道路
+  isParkingRd @11 :Bool;                    # 是否为泊车道路
+  isToll @12 :Bool;                         # 是否包含收费站
+  geometry @13 :List(Geo.Point);            # link行点信息
+
+  #### 以下信息Amap SDK应当可以透出，但是目前Lite项目中未定义，建议之后增加
+  ## drivingDirection @14 :UInt8;              # 0 - 单向通行，1 - 双向通行
+  ## mainAction @15 :MainAction;               # 基本导航动作
+  ## assistantAction @16 :AssistantAction;     # 辅助导航动作
+  ## hasMultiOut @17 :Bool;                    # 是否有岔路，0否，1是
+  ## hasMixFork @18 :Bool;                     # 是否有混淆路口, 0否，1是
+  ## hasTrafficLight @19 :Bool;                # 是否有红绿灯，0否，1是
+  ## hasParallel @20 :Bool;                    # 是否存在平行路
+  ####
+}
+
+enum LinkType {
+  linkTypeNull @255;                        # 无效值
+  linkTypeOrdinaryType @0;                  # 普通道路
+  linkTypeChannelType @1;                   # 航道
+  linkTypeTunnelType @2;                    # 隧道
+  linkTypeBridgeType @3;                    # 桥梁
+  linkTypeViaductType @4;                   # 高架桥
+  linkTypeParkingType @5;                   # 停车场内部道路
+  linkTypeParkingEntryType @6;              # 停车场入口连接路
+  linkTypeParkingExitType @7;               # 停车场出口连接路
+  linkTypeParkingPortType @8;               # 停车场出入口连接路
+  linkTypeTurningPortType @9;               # 掉头口连接路
+  linkTypeMainSideType @10;                 # 主辅路连接路
+  linkTypeTollgateType @11;                 # 收费站区域内道路
+  linkTypeInterchangeType @12;              # 立交桥域内道路
+  linkTypeInnerType @13;                    # 其他内部路，小区，园区等内部道路
+}
+
+enum RoadClass {
+  roadClassNull @255;                       # 无效值
+  roadClassHighway @0;                      # 高速公路
+  roadClassNationalWay @1;                  # 国道
+  roadClassProvincialWay @2;                # 省道
+  roadClassCountryWay @3;                   # 县道
+  roadClassTownWay @4;                      # 乡公路
+  roadClassCountyAndTownWay @5;             # 县乡村内部道路
+  roadClassExpressway @6;                   # 主要大街、城市快速道
+  roadClassMainWay @7;                      # 主要道路
+  roadClassMinorWay @8;                     # 次要道路
+  roadClassCommonWay @9;                    # 普通道路
+  roadClassNonNaviWay @10;                  # 非导航道路
+}
+
+enum Formway {
+  FormwayNone @0;                    # 无定义
+  FormwayDivisedLink @1;             # 主路，上下线分离
+  FormwayCrossLink @2;               # 复杂节点内部道路
+  FormwayJCT @3;                     # JCT：连接不同道路道路或连接同一高速道路不同方向的匝道,高速道路连接的立交桥处有中央隔离到分上下行的主干线不制作为JCT
+  FormwayRoundCircle @4;             # 环岛
+  FormwayServiceRoad @5;             # 服务区：表示高速公路服务区的道路
+  FormwaySlipRoad @6;                # 引路：连接高速道路与一般道路、连接一般道路与一般道路的道路
+  FormwaySideRoad @7;                # 辅路
+  FormwaySlipJCT @8;                 # 引路+JCT：引路与JCT重合部分的道路
+  FormwayExitLink @9;                # 出口
+  FormwayEntranceLink @10;           # 入口
+  FormwayTurnRightLineA @11;         # A类右转专用道
+  FormwayTurnRightLineB @12;         # B类右转专用道
+  FormwayTurnLeftLineA @13;          # A类左转专用道
+  FormwayTurnLeftLineB @14;          # B类左转专用道
+  FormwayCommonLink @15;             # 普通道路
+  FormwayTurnLeftRightLine @16;      # 左右转专用道:以不同道路为入口，既供车辆右转也供车辆左转使用的车道
+  FormwayServiceJCTRoad @53;         # 服务区+JCT:既是服务区内部道路也是连接高速道路与高速道路的JCT的道路
+  FormwayServiceSlipRoad @56;        # 服务区+引路:既是服务区内部道路也是连接高速道路与一般道路的引路的道路
+  FormwayServiceSlipJCTRoad @58;     # 服务区+引路+JCT:同时是服务区内部道路、引路、JCT的道路
+  FormwayBusRoad @59;                # 公交专用道路
+}
+
+
+enum MainAction {
+  MainActionUnknown @255;        # 无效值
+  MainActionNull @0;             # 无基本导航动作
+  MainActionTurnLeft @1;         # 左转
+  MainActionTurnRight @2;        # 右转
+  MainActionSlightLeft @3;       # 向左前方行驶
+  MainActionSlightRight @4;      # 向右前方行驶
+  MainActionTurnHardLeft @5;     # 向左后方行驶
+  MainActionTurnHardRight @6;    # 向右后方行驶
+  MainActionUTurn @7;            # 左转调头
+  MainActionContinue @8;         # 直行
+  MainActionMergeLeft @9;        # 靠左
+  MainActionMergeRight @10;      # 靠右
+  MainActionEntryRing @11;       # 进入环岛
+  MainActionLeaveRing @12;       # 离开环岛
+  MainActionSlow @13;            # 减速行驶
+  MainActionPlugContinue @14;    # 插入直行
+  MainActionEnterBuilding @65;   # 进入建筑物
+  MainActionLeaveBuilding @66;   # 离开建筑物
+  MainActionByElevator @67;      # 电梯换层
+  MainActionByStair @68;         # 楼梯换层
+  MainActionByEscalator @69;     # 扶梯换层
+  MainActionCount @70;           # 导航主动作最大个数 无特殊意义
+}
+
+# 表示导航段辅助动作的枚举
+enum AssistantAction {
+  AssiActionNull @0;                        # 无辅助导航动作
+  AssiActionEntryMain @1;                   # 进入主路
+  AssiActionEntrySideRoad @2;               # 进入辅路
+  AssiActionEntryFreeway @3;                # 进入高速
+  AssiActionEntrySlip @4;                   # 进入匝道
+  AssiActionEntryTunnel @5;                 # 进入隧道
+  AssiActionEntryCenterBranch @6;           # 进入中间岔道
+  AssiActionEntryRightBranch @7;            # 进入右岔路
+  AssiActionEntryLeftBranch @8;             # 进入左岔路
+  AssiActionEntryRightRoad @9;              # 进入右转专用道
+  AssiActionEntryLeftRoad @10;              # 进入左转专用道
+  AssiActionEntryMergeCenter @11;           # 进入中间道路
+  AssiActionEntryMergeRight @12;            # 进入右侧道路
+  AssiActionEntryMergeLeft @13;             # 进入左侧道路
+  AssiActionEntryMergeRightSild @14;        # 靠右行驶进入辅路
+  AssiActionEntryMergeLeftSild @15;         # 靠左行驶进入辅路
+  AssiActionEntryMergeRightMain @16;        # 靠右行驶进入主路
+  AssiActionEntryMergeLeftMain @17;         # 靠左行驶进入主路
+  AssiActionEntryMergeRightRight @18;       # 靠右行驶进入右转专用道
+  AssiActionEntryFerry @19;                 # 到达航道
+  AssiActionLeftFerry @20;                  # 驶离轮渡
+  AssiActionAlongRoad @23;                  # 沿当前道路行驶
+  AssiActionAlongSild @24;                  # 沿辅路行驶
+  AssiActionAlongMain @25;                  # 沿主路行驶
+  AssiActionArriveExit @32;                 # 到达出口
+  AssiActionArriveServiceArea @33;          # 到达服务区
+  AssiActionArriveTollGate @34;             # 到达收费站
+  AssiActionArriveWay @35;                  # 到达途经地
+  AssiActionArriveDestination @36;          # 到达目的地
+  AssiActionArriveChargingStation @37;      # 到达充电站
+  AssiActionEntryRingLeft @48;              # 绕环岛左转
+  AssiActionEntryRingRight @49;             # 绕环岛右转
+  AssiActionEntryRingContinue @50;          # 绕环岛直行
+  AssiActionEntryRingUturn @51;             # 绕环岛掉头
+  AssiActionSmallRingNotCount @52;          # 小环岛不数出口
+  AssiActionRightBranch1 @64;               # 右第一出口
+  AssiActionRightBranch2 @65;               # 右第二出口
+  AssiActionRightBranch3 @66;               # 右第三出口
+  AssiActionRightBranch4 @67;               # 右第四出口
+  AssiActionRightBranch5 @68;               # 右第五出口
+  AssiActionLeftBranch1 @69;                # 左第一出口
+  AssiActionLeftBranch2 @70;                # 左第二出口
+  AssiActionLeftBranch3 @71;                # 左第三出口
+  AssiActionLeftBranch4 @72;                # 左第四出口
+  AssiActionLeftBranch5 @73;                # 左第五出口
+  AssiActionEnterUline @80;                 # 进入调头专用路
+  AssiActionPassCrosswalk @90;              # 通过人行横道
+  AssiActionPassOverpass @91;               # 通过过街天桥
+  AssiActionPassUnderground @92;            # 通过地下通道
+  AssiActionPassSquare @93;                 # 通过广场
+  AssiActionPassPark @94;                   # 通过公园
+  AssiActionPassStaircase @95;              # 通过扶梯
+  AssiActionPassLift @96;                   # 通过直梯
+  AssiActionPassCableway @97;               # 通过索道
+  AssiActionPassSkyChannel @98;             # 通过空中通道
+  AssiActionPassChannel @99;                # 通过建筑物穿越通道
+  AssiActionPassWalkroad @100;              # 通过行人道路
+  AssiActionPassBoatLine @101;              # 通过游船路线
+  AssiActionPassSightSeeingLine @102;       # 通过观光车路线
+  AssiActionPassSkidway @103;               # 通过滑道
+  AssiActionPassLadder @105;                # 通过阶梯
+  AssiActionPassSlope @106;                 # 通过斜坡
+  AssiActionPassBridge @107;                # 通过桥
+  AssiActionPassFerry @108;                 # 通过轮渡
+  AssiActionPassSubway @109;                # 通过地铁通道
+  AssiActionSoonEnterBuilding @112;         # 即将进入建筑
+  AssiActionSoonLeaveBuilding @113;         # 即将离开建筑
+  AssiActionEnterRoundabout @114;           # 进入环岛
+  AssiActionLeaveRoundabout @115;           # 离开环岛
+  AssiActionEnterPath @116;                 # 进入小路
+  AssiActionEnterInner @117;                # 进入内部路
+  AssiActionEnterLeftBranchTwo @118;        # 进入左侧第二岔路
+  AssiActionEnterLeftBranchThree @119;      # 进入左侧第三岔路
+  AssiActionEnterRightBranchTwo @120;       # 进入右侧第二岔路
+  AssiActionEnterRightBranchThree @121;     # 进入右侧第三岔路
+  AssiActionEnterGasStation @122;           # 进入加油站道路
+  AssiActionEnterHousingEstate @123;        # 进入小区道路
+  AssiActionEnterParkRoad @124;             # 进入园区道路
+  AssiActionEnterOverhead @125;             # 上高架
+  AssiActionEnterCenterBranchOverhead @126; # 中间岔路上高架
+  AssiActionEnterRightBranchOverhead @127;  # 右岔路上高架
+  AssiActionEnterLeftBranchOverhead @128;   # 左岔路上高架
+  AssiActionAlongStraight @129;             # 沿当前道路直行
+  AssiActionDownOverhead @130;              # 下高架
+  AssiActionEnterLeftOverhead @131;         # 左侧道路上高架
+  AssiActionEnterRightOverhead @132;        # 右侧道路上高架
+  AssiActionUpToBridge @133;                # 上桥
+  AssiActionEnterParking @134;              # 进停车场
+  AssiActionEnterOverpass @135;             # 进入立交桥
+  AssiActionEnterBridge @136;               # 进入桥梁
+  AssiActionEnterUnderpass @137;            # 进入地下通道
+}
+
+
+# 导航指令 - 即实时导航信息字段
+struct AmapNaviInfo {
+  isOutOfRoute @0 :Bool;                                        # 是否偏航
+  naviType @1 :NaviType;                                        # 在线导航模式
+  iconType @2 :IconType;                                        # 导航推荐动作
+  curRetainDistance @3 :Int32;                                  # 导航推荐动作距离[m]
+  allLength @4 :Int32;                                          # 导航全程长度[m]
+  pathRetainDistance @5 :Int32;                                 # 路线剩余距离[m]
+  laneInfo @6 :LaneInfo;                                        # 车道前背景信息，巡航需要全部背景车道
+  curSpeedLimit @7 :Int32;                                      # 当前限速[km/h]，巡航状态也需要
+  curLink @8 :Int32;                                            # 当前小路段Link id，巡航状态也需要
+  curStep @9 :Int32;                                            # 当前导航段Step id，巡航状态也需要
+  distanceToNextLink @10 :Int32;                                # 离下个link的距离[m]，巡航状态也需要
+  curRoadNameNavi @11 :Text;                                    # 当前所在道路名称
+  curRoadLevelForNavi @12 :RoadClass;                           # 当前所在道路等级
+  cameraInfo @13 :List(CameraInfo);                             # 摄像头限速信息，巡航状态也需要
+  trafficFacilityInfo @14 :List(TrafficFacilityInfo);           # 道路设施信息，巡航状态也需要
+  trafficLightInfo @15 :List(TrafficLightInfo);                 # 前方红绿灯信息，巡航状态也需要
+  entranceExit @16 :EntranceExit;                               # 距离前方/入口匝道的距离
+  naviText @17 :Text;                                           # 导航TTS语音播报
+  trafficInfo @18 :TrafficStatus;                             # 前方交通拥堵状态
+  elevatedRoadStatus @19 :AElevatedRoadType;                    # 在主路上（高架上）态，高架上下标识
+  parallelRoadStatus @20 :AParallelRoadType;                    # 在主辅路（无高架）态，主辅路标识
+  tollGateInfo @21 :List(TollGateInfo);                         # 前方收费站信息
+  electronicSpeedLimitInfo @22 :List(ElectronicSpeedLimitInfo); # 电子限速
+  weatherInfo @23 :List(WeatherInfo);                           # 实时天气信息
+  trafficEventInfo @24 :List(TrafficEventInfo);                 # 交通事件信息
+}
+    
+
+struct ElectronicSpeedLimitInfo {
+  electronicSpeedLimitType @0 :ElectronicSpeedLimitType;        # 电子限速类型
+  speedLimitValue @1 :Int32;                                    # 电子限速值
+  electronicSpeedLimitDist @2 :Int32;                           # 自车到电子限速距离[m]
+}
+
+
+enum ElectronicSpeedLimitType {
+  electronicSpeedLimitedDisable @0;                             # 电子限速结束
+  electronicSpeedLimitedEnable @1;                              # 电子限速开始
+}
+
+
+struct WeatherInfo {
+  weatherName @0 :Text;                                         # 天气名称                                 
+  alertLevelName @1 :Text;                                      # 预警名称
+  weatherId @2 :Int32;                                          # 天气ID
+  alertLevelId @3 :Int32;                                       # 警告等级
+  distanceToCar @4 :Int32;                                      # 自车到天气路段距离
+}
+
+struct TrafficEventInfo {
+  trafficEventType @0 :TrafficEventType;                        # 交通事件类型
+  occupiedLaneType @1 :OccupiedLaneType;                        # 占用车道类型，占哪边车道
+  trafficEventDistance @2 :Int32;                               # 到达事件的距离[m]，处于事件范围中时持续填0
+}
+
+enum TrafficEventType {
+  trafficEventTypeNull @0;                                      # 无效值
+  trafficEventTypeFlow @1;                                      # 流量
+  trafficEventTypeAccident @2;                                  # 事故
+  trafficEventTypeConstruction @3;                              # 施工
+  trafficEventTypeControl @4;                                   # 管制
+  trafficEventTypeWeather @5;                                   # 天气
+  trafficEventTypeRoad @6;                                      # 路面
+  trafficEventTypeActivity @7;                                  # 活动
+  trafficEventTypeDisaster @8;                                  # 灾害
+  trafficEventTypeOhter @9;                                     # 其他
+  trafficEventTypeAccidentAndControl @10;                       # 事故&管制
+  trafficEventTypeConstructionAndControl @11;                   # 施工&管制
+  trafficEventTypeWeatherAndControl @12;                        # 天气&管制
+  trafficEventTypeRoadAndControl @13;                           # 路面&管制
+}
+
+enum OccupiedLaneType {
+  occupiedLaneTypeNull @0;                                      # 无效值
+  occupiedLaneTypeLeftSide @1;                                  # 占用左侧车道
+  occupiedLaneTypeRightSide @2;                                 # 占用右侧车道
+  occupiedLaneTypeBothSide @3;                                  # 占用两侧车道
+  occupiedLaneTypeMiddle @4;                                    # 占用中间车道
+  occupiedLaneTypeAll @5;                                       # 占用全部车道
+}
+
+# 张仲凯20250410：这里需要确认，laneTypes应该是个list，包含收费站多条车道信息，目前看博世定义只有一个值
+struct TollGateInfo {
+  laneTypes @0 : List(TollLaneType);                            # 收费站车道类型
+  distance @1 :Int32;                                           # 到收费站的距离
+}
+
+enum TollLaneType {
+  tollLaneTypeNull @0;                                          # 无效值
+  tollLaneTypeNormal @1;                                        # 支持普通收费车道
+  tollLaneTypeEtc @2;                                           # 支持ETC收费车道
+  tollLaneTypeAutomatric @3;                                    # 支持自动发卡车道
+  tollLaneTypeAliPay @4;                                        # 支持支付宝收费车道
+  tollLaneTypeWechatPay @5;                                     # 支持微信支付车道
+  tollLaneTypeItc @6;                                           # 支持ITC收费车道
+}
+
+
+struct CameraInfo {
+  cameraDistance @0 :UInt32;                                    # 当前位置到摄像头的距离[m]
+  cameraSpeed @1 :UInt32;                                       # 摄像头的限速值[km/h]
+  cameraType @2 :CameraType;                                    # 摄像头的类型
+}
+
+enum CameraType {
+  cameraTypeBicycleLane @0;                                     # 占用非机动车道，非机动车道拍照
+  cameraTypeBreakRule @1;                                       # 无细类的违章，违章拍照，违章高发地
+  cameraTypeBusway @2;                                          # 占用公交专用车道，公交专用道拍照
+  cameraTypeEmergency @3;                                       # 占用应急车道，应急车道拍照
+  cameraTypeIntervalVelocityEnd @4;                             # 区间测速终点
+  cameraTypeIntervalVelocityStart @5;                           # 区间测速起点
+  cameraTypeSpeed @6;                                           # 测速摄像
+  cameraTypeSurveillance @7;                                    # 视频监控,监控摄像
+  cameraTypeTrafficLight @8;                                    # 闯红灯,闯红灯拍照
+}
+
+
+struct TrafficLightInfo {
+  startTime @0 :Int32;                                          # 状态开始时间，单位s
+  endTime @1 :Int32;                                            # 状态结束时间，单位s
+  trafficLightState @2 :TrafficLightState;                      # 红绿灯灯态
+  length @3 :Int32;                                             # 红绿灯位置，从link起点偏移量
+  linkIndex @4 :Int32;                                          # 导航端index
+  linkId @5 :Int32;                                             # link id
+}
+
+struct LaneInfo {
+  foregroundLane @0 :List(LaneType);                            # 前景车道
+  backgroundLane @1 :List(LaneType);                            # 背景车道
+}
+
+enum LaneType {
+  laneTypeAhead @0;                                             # 直行
+  laneTypeLeft @1;                                              # 左转
+  laneTypeAheadLeft @2;                                         # 直行｜左转
+  laneTypeRight @3;                                             # 右转
+  laneTypeAheadRight @4;                                        # 直行｜右转
+  laneTypeLuTurn @5;                                            # 左掉头
+  laneTypeLeftRight @6;                                         # 左转｜右转
+  laneTypeAheadLeftRight @7;                                    # 直行｜左转｜右转
+  laneTypeRuTurn @8;                                            # 右掉头
+  laneTypeAheadLuTurn @9;                                       # 直行｜左掉头
+  laneTypeAheadRuTurn @10;                                      # 直行｜右掉头
+  laneTypeLeftLuTurn @11;                                       # 左转｜左掉头
+  laneTypeRightRuTurn @12;                                      # 右转｜右掉头
+  laneTypeLeftInAhead @13;                                      # 直行｜拓展              
+  laneTypeLeftInLeftLuTurn @14;                                 # 左转｜左掉头｜拓展
+  laneTypeReserved @15;                                         # 保留
+  laneTypeAheadLeftLuTurn @16;                                  # 直行｜左转｜左掉头
+  laneTypeRightRuTurnEx @17;                                    # 右转｜左掉头
+  laneTypeLeftRuTurn @18;                                       # 左转｜左掉头
+  laneTypeAheadRightRuTurn @19;                                 # 直行｜右转｜右掉头
+  laneTypeLeftLuTurnEx @20;                                     # 左转｜右掉头
+  laneTypeBus @21;                                              # 公交车道
+  laneTypeEmpty @22;                                            # 空车道
+  laneTypeVariable @23;                                         # 可变车道
+  laneTypeNull @255;                                            # 无对应车道
+}
+
+struct TrafficFacilityInfo {
+  trafficFacilityDistance @0 :UInt32;                           # 自车到道路设施的距离[m]
+  trafficFacilitySpeed @1 :UInt32;                              # 限速值 [km/h]
+  trafficFacilityType @2 :TrafficFacilityType;                  # 道路设施类型
+}
+
+enum TrafficFacilityType {
+  facilityTypeNull @0;                                          # 未知类型
+  facilityTypeLeftInterFlow @1;                                 # 左侧合流
+  facilityTypeRightInterFlow @2;                                # 右侧合流
+  facilityTypeSharpTurn @3;                                     # 急转弯
+  facilityTypeReverseTurn @4;                                   # 反向转弯
+  facilityTypeLinkingTurn @5;                                   # 连续转弯
+  facilityTypeAccidentArea @6;                                  # 事故多发地
+  facilityTypeFallingRocks @7;                                  # 注意落石
+  facilityTypeRailwayCross @8;                                  # 铁路道口
+  facilityTypeSlippery @9;                                      # 易滑
+  facilityTypeMaxSpeedLimit @10;                                # 最大限速标志
+  facilityTypeMinSpeedLimit @11;                                # 最小限速标志
+  facilityTypeVillage @12;                                      # 村庄
+  facilityTypeLeftNarrow @13;                                   # 左侧变窄
+  facilityTypeRightNarrow @14;                                  # 右侧变窄
+  facilityTypeDoubleNarrow @15;                                 # 两侧变窄
+  facilityTypeCrossWindArea @16;                                # 横风区
+  facilityTypeSchoolZone @17;                                   # 前方学校
+  facilityTypeOvertakeForbid @18;                               # 禁止超车
+  facilityTypeNarrowBridge @19;                                 # 窄桥
+  facilityTypeDoubleDetour @20;                                 # 左右绕行
+  facilityTypeLeftDetour @21;                                   # 左侧绕行
+  facilityTypeRightDetour @22;                                  # 右侧绕行
+  facilityTypeLeftDangerous @23;                                # 左侧傍山险路
+  facilityTypeRightDangerous @24;                               # 右侧傍山险路
+  facilityTypeUpperSteep @25;                                   # 上陡坡
+  facilityTypeDownSteep @26;                                    # 下陡坡
+  facilityTypeWaterPavement @27;                                # 过水路面
+  facilityTypeIrregularityPavement @28;                         # 路面不平
+  facilityTypeAmble @29;                                        # 慢行
+  facilityTypeAttentionDanger @30;                              # 注意危险
+  facilityTypeZebraCrossing @31;                                # 人行横道
+  facilityTypeLeftSharpTurn @32;                                # 左急转弯
+  facilityTypeRightSharpTurn @33;                               # 右急转弯
+  facilityTypeLeftFallingRocks @34;                             # 注意左侧落石
+  facilityTypeRightFallingRocks @35;                            # 注意右侧落石
+  facilityTypeRailwayCrossExtend @36;                           # 铁路道口
+  facilityTypeRailwayWithGates @37;                             # 有人看管的铁路道口
+  facilityTypeRailwayWithoutGates @38;                          # 无人看管的铁路道口
+  facilityTypeTruckHeightLimit @39;                             # 货车限高
+  facilityTypeTruckWidthLimit @40;                              # 货车限宽
+  facilityTypeTruckWeightLimit @41;                             # 货车限重
+  facilityTypeCheckpoint @42;                                   # 货车检查站
+  facilityTypeBusLane @43;                                      # 公交车道设施
+  facilityTypeWinterOlympicsLane @44;                           # 冬奥专用设施
+}
+
+struct TrafficStatus {
+  length @0 :Float64;                                           # 交通状态路段的拥堵状态长度
+  startLinkIdx @1 :Int32;                                       # 路况起始link id
+  endLinkIndex @2 :Int32;                                       # 路况结束link id
+  startSegmentIdx @3 :Int32;                                    # 同路况状态的起始Seg索引
+  endSegmentIdx @4 :Int32;                                      # 同路况状态的结束Seg索引
+  trafficState @5 :TrafficState;                               # 交通拥堵状态
+}
+
+enum TrafficState {
+  trafficUnknown @0;                                            # 未知
+  trafficSmooth @1;                                             # 道路通畅
+  trafficSlow @2;                                               # 道路缓行
+  trafficJam @3;                                                # 道路阻塞
+  trafficVeryJam @4;                                            # 道路严重阻塞
+}
+
+enum IconType {
+  iconTypeNone @0;                                              # 无定义
+  iconTypeDefault @1;                                           # 自车图标
+  iconTypeLeft @2;                                              # 左转图标
+  iconTypeRight @3;                                             # 右转图标
+  iconTypeLeftFront @4;                                         # 左前方图标
+  iconTypeRightFront @5;                                        # 右前方图标
+  iconTypeLeftBack @6;                                          # 左后方图标
+  iconTypeRightBack @7;                                         # 右后方图标
+  iconTypeLeftTurnAround @8;                                    # 左转掉头图标
+  iconTypeStraight @9;                                          # 直行图标
+  iconTypeArrivedWaypoint @10;                                  # 到达途经点图标
+  iconTypeEnterRoundabout @11;                                  # 进入环岛图标
+  iconTypeOutRoundabout @12;                                    # 驶出环岛图标
+  iconTypeArrivedServiceArea @13;                               # 到达服务区图标
+  iconTypeArrivedTollgate @14;                                  # 到达收费站图标
+  iconTypeArrivedDestination @15;                               # 到达目的地图标
+  iconTypeArrivedTunnel @16;                                    # 到达隧道图标
+  iconTypeEntryLeftRing @17;                                    # 进入环岛，注意，这个是左侧通行地区的顺时针环岛
+  iconTypeLeaveLeftRing @18;                                    # 驶出环岛，注意，这个是左侧通行地区的顺时针环岛
+  iconTypeUTurnRight @19;                                       # 右转掉头图标 ，注意，这个是左侧通行地区的掉头
+  iconTypeSpecialContinue @20;                                  # 顺行图标
+  iconTypeEntryRingLeft @21;                                    # 标准小环岛,绕环岛左转,右侧通行地区的逆时针环岛
+  iconTypeEntryRingRight @22;                                   # 标准小环岛,绕环岛右转,右侧通行地区的逆时针环岛
+  iconTypeEntryRingContinue @23;                                # 标准小环岛,绕环岛直行,右侧通行地区的逆时针环岛
+  iconTypeEntryRingUTurn @24;                                   # 标准小环岛,绕环岛调头,右侧通行地区的逆时针环岛
+  iconTypeEntryLeftRingLeft @25;                                # 标准小环岛,绕环岛左转,左侧通行地区的顺时针环岛
+  iconTypeEntryLeftRingRight @26;                               # 标准小环岛,绕环岛右转,左侧通行地区的顺时针环岛
+  iconTypeEntryLeftRingContinue @27;                            # 标准小环岛,绕环岛直行,左侧通行地区的顺时针环岛
+  iconTypeEntryLeftRingUTurn @28;                               # 标准小环岛 绕环岛调头，左侧通行地区的顺时针环岛
+  iconTypeCrosswalk @29;                                        # 通过人行横道图标,骑行、步行专有图标
+  iconTypeOverpass @30;                                         # 通过过街天桥图标,骑行、步行专有图标
+  iconTypeUnderpass @31;                                        # 通过地下通道图标,骑行、步行专有图标
+  iconTypeSquare @32;                                           # 通过广场图标,骑行、步行专有图标
+  iconTypePark @33;                                             # 通过公园图标,骑行、步行专有图标
+  iconTypeStaircase @34;                                        # 通过扶梯图标
+  iconTypeLift @35;                                             # 通过直梯图标
+  iconTypeCableway @36;                                         # 通过索道图标
+  iconTypeSkyChannel @37;                                       # 通过空中通道图标
+  iconTypeChannel @38;                                          # 通过通道、建筑物穿越通道图标
+  iconTypeWalkRoad @39;                                         # 通过行人道路图标
+  iconTypeCruiseRoute @40;                                      # 通过游船路线图标
+  iconTypeSightseeingBusline @41;                               # 通过观光车路线图标
+  iconTypeSlideway @42;                                         # 通过滑道图标
+  iconTypeLadder @43;                                           # 通过阶梯图标
+  iconTypeSlope @44;                                            # 通过斜坡图标
+  iconTypeBridge @45;                                           # 通过桥图标
+  iconTypeFerry @46;                                            # 通过轮渡图标
+  iconTypeSubway @47;                                           # 通过地铁通道图标
+  iconTypeEnterBuilding @48;                                    # 进入建筑物图标
+  iconTypeLeaveBuilding @49;                                    # 离开建筑物图标
+  iconTypeByElevator @50;                                       # 电梯换层图标
+  iconTypeByStair @51;                                          # 楼梯换层图标
+  iconTypeByEscalator @52;                                      # 扶梯换层图标
+  iconTypeLowTrafficCross @53;                                  # 非导航段通过红绿灯路口图标
+  iconTypeLowCross @54;                                         # 非导航段通过普通路口图标
+}
+
+enum NaviType {
+  naviTypeNone @0;                                              # 未导航
+  naviTypeGps @1;                                               # GPS导航
+  naviTypeSimulation @2;                                        # 模拟导航
+  naviTypeReplanning @3;                                        # 重新规划
+  naviTypeCruising @4;                                          # 巡航
+  naviTypePlanning @5;                                          # 规划中，还未点确认开始导航
+}
+
+enum TrafficLightState {
+  trafficNone @0;                                               # 未定义
+  trafficRed @1;                                                # 红
+  trafficYellow @2;                                             # 黄
+  trafficGreen @3;                                              # 绿
+}
+
+enum EntranceExit {
+  entranceExitTypeNone @0;                                      # 无出口或入口
+  entranceExitTypeExit @1;                                      # 出口
+  entranceExitTypeEntrance @2;                                  # 入口
+}
+
+enum AElevatedRoadType {
+  elevateRoadTypeNone @0;                                       # 无高架
+  elevateRoadTypeUpElevated @1;                                 # 高架上
+  elevateRoadTypeDownElevated @2;                               # 高架下
+}
+
+enum AParallelRoadType {
+  parallelRoadTypeNone @0;                                      # 无主辅路
+  parallelRoadTypeMain @1;                                      # 主路
+  parallelRoadTypeSide @2;                                      # 辅路
+}

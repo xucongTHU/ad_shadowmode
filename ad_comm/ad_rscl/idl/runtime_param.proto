@@ -1,0 +1,22 @@
+syntax = "proto2";
+
+package senseAD.rscl.idl;
+
+message ParamOperate {
+  required string src = 1;
+  required string dest = 2;
+  enum Operate {
+    GET = 0;
+    SET = 1;
+    DISCOVERY = 2;
+    GETALL = 3;
+  }
+  message Param {
+    required Operate operate = 1;
+    optional string node = 2;
+    optional string name = 3;
+    optional string value = 4;
+    optional bool result = 5;
+  }
+  repeated Param params = 3;
+}

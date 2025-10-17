@@ -1,0 +1,15 @@
+description: "30hz 300KB, simulate component_state topic 1-1"
+case_content:
+  - node_name: "node_a"
+    timeout_s: 60
+    pubs:
+    - channel_name: "/benchmark_channel"
+      hz: 30
+      message_size: 300000
+      reliability: "best_effort"
+  - node_name: "node_b"
+    timeout_s: 70
+    subs:
+    - channel_name: "/benchmark_channel"
+      queue_size: 10
+      reliability: "best_effort"

@@ -1,0 +1,31 @@
+syntax = "proto2";
+
+package senseAD.rscl.idl;
+
+import "ad_rscl/idl/component_conf.proto";
+
+message SyncedComponentInfo {
+  optional string class_name = 1;
+  optional SyncedComponentConfig config = 2;
+}
+
+message TimerComponentInfo {
+  optional string class_name = 1;
+  optional TimerComponentConfig config = 2;
+}
+
+message ModuleConfig {
+  optional string module_library = 1;
+  repeated SyncedComponentInfo components = 2;
+  repeated TimerComponentInfo timer_components = 3;
+}
+
+message BashScriptConfig {
+  required string command = 1;
+}
+
+message DagConfig {
+  optional string version = 1;
+  repeated ModuleConfig module_config = 2;
+  repeated BashScriptConfig bash_script_config = 3;
+}

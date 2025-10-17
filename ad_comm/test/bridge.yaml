@@ -1,0 +1,31 @@
+# dynamic library path: defines the path to the dynamic library.
+# like: /home/xxx/xxx.so or ../include/xxx.so
+dynamic-library-paths:
+  - ./libad_msg_bridge_include.so
+  - ./libad_msg_bridge_include1.so
+
+# bridges: defines the bridges to be loaded.
+# topic-name: defines the topic name, used to create subscriber and publisher.
+#   It should be unique in the bridges,
+#   because it will be used as the key to find message-type.
+# NOTE: topic-name must be lower case;
+#       because ROS only valid characters are a-z, A-Z, 0-9, / and _.
+# message-type: defines the message type,
+#   it should be the same as the message type defined in the dynamic library.
+bridges:
+  - key: test_msg_bridge_1
+    topic-name: rscl_to_ros
+    message-type: MyMessage
+    node-name: my_node_name
+    # namespace:
+  - key: test_msg_bridge_2
+    topic-name: ros_to_rscl
+    message-type: MyMessage
+    node-name: my_node_name1
+  - key: test_msg_bridge_3
+    topic-name: rscl_to_ros1
+    message-type: MyMessage1
+    node-name: my_node_name
+    # namespace:
+  # - topic-name:
+  #   message-type:

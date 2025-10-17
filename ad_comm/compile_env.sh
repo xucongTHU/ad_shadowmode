@@ -1,0 +1,1 @@
+export BUILDTOOLS_TARGET_PLATFORM=thor

@@ -1,0 +1,15 @@
+description: "1hz 3MB, simulate hdmap/point_cloud topic"
+case_content:
+  - node_name: "node_a"
+    timeout_s: 60
+    pubs:
+    - channel_name: "/benchmark_channel"
+      hz: 1
+      message_size: 3000000
+      reliability: "best_effort"
+  - node_name: "node_b"
+    timeout_s: 70
+    subs:
+    - channel_name: "/benchmark_channel"
+      queue_size: 10
+      reliability: "best_effort"

@@ -1,0 +1,200 @@
+syntax = "proto2";
+
+package senseAD.rscl.idl;
+
+import "google/protobuf/any.proto";
+import "ad_mw/proto/runtime_conf.proto";
+import "ad_rscl/idl/hetero_channel_config.proto";
+
+message ConditionDetail {
+    repeated string mac_address = 1;
+    repeated string env_var = 2;
+}
+
+message Condition {
+    // Process name. If not set, then not filter by process name
+    // REGEX_SUPPORTED
+    repeated string included = 1;
+    repeated string excluded = 2;
+
+    optional ConditionDetail or = 3;
+    // Currently, the `and` have no use case
+    optional ConditionDetail and = 4;
+}
+
+message Extend {
+    optional Condition condition = 1;
+    required string pb_file = 2;
+}
+
+message EnvGroup {
+    optional Condition condition = 1;
+    map<string, string> env = 2;
+}
+
+// Setting for the hetero channel
+// Meaning of `channel` here doesn't equal to `topic`
+// Just mean that it provided a pipe
+// for passing message to some blackbox endpoint
+message HeteroChannelConfig {
+    required SupportedHeteroChannel type = 1;
+    required string name = 2;
+    repeated google.protobuf.Any config = 3;
+}
+
+message TopicHeteroChannelConfig {
+    enum EnabledSide {
+        BOTH = 0;
+        PUBLISHER_ONLY = 1;
+        SUBSCRIBER_ONLY = 2;
+    }
+    required EnabledSide enabled_side = 1;
+    required string enabled_hetero = 2;
+}
+
+message TopicHeteroChannelConfigs {
+    repeated TopicHeteroChannelConfig config = 1;
+};
+
+message InetBasedService {
+    optional string service_name = 1;
+    optional string ip = 2;
+    optional uint32 port = 3;
+};
+
+message BridgeConfig {
+    optional string topic_name = 1;
+    optional string instance_id = 2;
+    optional string instance_specifier = 3;
+    optional string msg_type = 4;
+    optional string dynamic_lib_path = 5;
+}
+
+// Currently this config only support Publisher/Subscriber
+// Not support Service/Client yet
+message TopicConfig {
+    // REGEX_SUPPORTED
+    required string topic_name = 1;
+    // List of HeteroChannelConfig.name
+    optional TopicHeteroChannelConfigs topic_specific_hetero_configs = 2;
+    // TODO(wangxiaotao) Need change this flag
+    // Special Option: In case this topic is only
+    optional bool hetero_only = 3 [default = false];
+}
+
+message CrossSystemEndpointConfig {
+    optional int32 packet_rate_limit = 1;
+    repeated string packet_rate_limit_excluded_topic = 2;
+    optional uint32 send_thread_num = 3 [default = 4];
+    optional bool non_blocking_send = 4 [default = false];
+    optional bool send_thread_debug = 5 [default = false];
+}
+
+message CrossSystemStatReportConfig {
+    optional bool enable = 1 [default = false];
+    optional uint32 sample_interval = 50 [default = 50];
+    optional uint32 report_interval = 1000 [default = 1000];
+}
+
+message CrossSystemEndpoint {
+    required string hostname = 1;
+    required string ip = 2;
+
+    // Deprecated
+    // Support multi-instance of CrossSystem class.
+    // The default server listening port is 5432
+    optional uint32 port = 3 [default = 5432];
+
+    optional CrossSystemEndpointConfig config = 4;
+
+    // v3 param
+    optional uint32 summary_service_port = 5 [default = 5453];
+}
+
+enum CrossSystemMode {
+    STATIC_PEER = 0;
+    // NOT_SUPPORTED_NOW.
+    DYNAMIC_PEER = 1;
+}
+
+enum CrossSystemOutgoingPrefixMode {
+    COMMON_TOPIC_ONLY = 0;
+    ALL = 1;
+};
+
+message CrossSystemConfig {
+    required string hostname = 1;
+
+    optional CrossSystemMode mode = 2 [default = STATIC_PEER];
+    repeated CrossSystemEndpoint endpoint = 3;
+
+    // REGEX_SUPPORTED.
+    repeated string excluded_topic = 4;
+    // REGEX_SUPPORTED. If not provide, mean all topic
+    repeated string whitelist_topic = 5;
+
+    // Deprecated
+    repeated string outgoing_only_topic = 6;
+    // Deprecated
+    optional CrossSystemOutgoingPrefixMode outgoing_prefix_mode = 7
+        [default = ALL];
+    // Deprecated
+    repeated string extra_common_topic = 8;
+
+    optional CrossSystemStatReportConfig stat_report_config = 9;
+
+    // v3 param
+    optional uint32 query_service_port = 10 [default = 5452];
+    optional uint32 summary_service_port = 11 [default = 5453];
+    optional uint32 distribute_service_port = 12 [default = 5454];
+};
+
+message NodeConfig {
+    // REGEX_SUPPORTED
+    required string node_name = 1;
+    repeated TopicConfig node_specific_topic_config = 2;
+}
+
+message RuntimeConfig {
+    optional Condition condition = 1;
+    optional senseAD.mw.proto.RuntimeConfig config = 2;
+}
+
+message CommonBridgeClientConfig {
+    required CrossSystemEndpoint endpoint = 1;
+    repeated string excluded_topic = 2;
+    repeated string included_topic = 3;
+}
+
+message CommonBridgeServerConfig {
+    required string hostname = 1;
+    optional uint32 port = 2 [default = 5800];
+}
+
+message CommonBridgeConfig {
+    required CommonBridgeServerConfig server = 1;
+    repeated CommonBridgeClientConfig clients = 2;
+}
+
+message GlobalConfig {
+    // Environment variable
+    repeated EnvGroup env_group = 1;
+    // Load another pb.txt
+    repeated Extend extend = 2;
+    // For underly middleware
+    repeated RuntimeConfig mw_config = 3;
+
+    // For cross system setting
+    optional CrossSystemConfig cross_system = 4;
+
+    repeated NodeConfig node_config = 5;
+
+    repeated HeteroChannelConfig hetero_config = 6;
+
+    // **Temporary solution**
+    // Should remove after implemet a topic based cross
+    // system service/client
+    repeated InetBasedService inet_service = 7;
+
+    optional CommonBridgeConfig common_bridge = 8;
+}

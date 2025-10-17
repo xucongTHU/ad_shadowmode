@@ -1,0 +1,40 @@
+# In case for multiple soc/pc, you may want to apply different
+# setting to differet soc.
+# So you can use the `condition` to do a conditional loading
+# The env within the group will only be loaded if and only if
+# the current soc match the rule in `condition`
+
+# For example. You have 2 soc in a platform, and you want them to communicate using cyber
+
+# For soc A
+group {
+    condition: {
+       and: {
+          mac_address: ""
+       }
+    }
+    env {
+        key: "CYBER_IP"
+        value: "10.151.179.70"
+    }
+}
+
+# For soc B
+group {
+    condition: {
+       and: {
+          mac_address: "32:a3:10:32:90:71"
+       }
+    }
+    env {
+        key: "CYBER_IP"
+        value: "10.151.179.71"
+    }
+}
+
+group {
+    env {
+        key: "CYBER_DOMAIN_ID"
+        value: "55"
+    }
+}

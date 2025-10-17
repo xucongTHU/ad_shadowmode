@@ -1,0 +1,7 @@
+
+1. Amap_navi_msgs.capnp_ori 是最初的版本,有很多不符合capnp语法的问题
+
+2. Amap_navi_msgs.capnp是正在使用的版本,基于Amap_navi_msgs.capnp_ori修改了命名风格,变量拼写
+和枚举值定义变更
+
+3.Amap_navi_msgs.capnp 中的enum定义,全部修改为uint8,对因关系可参考Amap_navi_msgs_enum.README中定义

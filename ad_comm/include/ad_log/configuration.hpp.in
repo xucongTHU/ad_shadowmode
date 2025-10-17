@@ -1,0 +1,31 @@
+/*
+ * Copyright (C) 2023 by SenseTime Group Limited. All rights reserved.
+ * dumengrong <dumengrong@senseauto.com>
+ */
+
+#pragma once
+
+#define ADLOG_LEVEL_TRACE 0
+#define ADLOG_LEVEL_DEBUG 1
+#define ADLOG_LEVEL_INFO 2
+#define ADLOG_LEVEL_WARN 3
+#define ADLOG_LEVEL_ERROR 4
+#define ADLOG_LEVEL_CRITICAL 5
+#define ADLOG_LEVEL_OFF 6
+
+#define AD_LOG_LEVEL_TRACE ADLOG_LEVEL_TRACE
+#define AD_LOG_LEVEL_DEBUG ADLOG_LEVEL_DEBUG
+#define AD_LOG_LEVEL_INFO ADLOG_LEVEL_INFO
+#define AD_LOG_LEVEL_WARN ADLOG_LEVEL_WARN
+#define AD_LOG_LEVEL_ERROR ADLOG_LEVEL_ERROR
+#define AD_LOG_LEVEL_CRITICAL ADLOG_LEVEL_CRITICAL
+#define AD_LOG_LEVEL_OFF ADLOG_LEVEL_OFF
+
+// NOTE: dont format this file
+#ifndef ENABLE_GAC_LOG
+#if @ENABLE_GAC_LOG@  // NOLINT
+#define ENABLE_GAC_LOG
+#endif
+#endif
+
+#undef ON

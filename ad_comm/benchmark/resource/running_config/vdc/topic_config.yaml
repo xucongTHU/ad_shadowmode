@@ -1,0 +1,38 @@
+# postfix matching expressions ending with asterisks are supported.
+
+# msg_max_size: must less than 64M
+# Highest to lowest priority order, will match the first matching topic
+#
+# queue_size: used for zmq_server, rscl_monitor or other rscl tools.
+# Because when rscl create NoType channel, it could not get the qos config of the channel.
+#
+# max_reader: some middleware needs to set a maximum value when it exceeds the default upper limit.
+#
+# debug_mode: if true, will send debuginfo to FAW. default interval is 1s.
+
+ordered_topic_configurations:
+   - topic: polyfill_core_notify
+     queue_size: 10
+     max_reader: 50
+   - topic: Imu
+     msg_max_size: 65536
+   - topic: CANMsg2Loc
+     msg_max_size: 65536
+   - topic: /localization/odomstate_info
+     msg_max_size: 65536
+     debug_mode: true
+   - topic: /perception/center_camera_fov120/*
+     msg_max_size: 500000
+     debug_mode: true
+   - topic: /scene_mapping/fusion_lines
+     msg_max_size: 500000
+     debug_mode: true
+   - topic: /scene_mapping/local_map
+     msg_max_size: 500000
+     debug_mode: true
+   - topic: /monitor/monitor_auxiliary_info
+     msg_max_size: 1000000
+   - topic: _internal*
+     msg_max_size: 500000
+   - topic: /benchmark_channel
+     msg_max_size: 5000000

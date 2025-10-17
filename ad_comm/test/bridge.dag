@@ -1,0 +1,11 @@
+module_config {
+    module_library : "/path/to/your/librscl_external_communication_component_so.so"
+    timer_components {
+        class_name : "TestExternalCommunication"
+        config {
+            name : "TestExternalCommunication"
+            interval_ms : 100
+            config_file_path: "./bridge.yaml"
+        }
+    }
+}

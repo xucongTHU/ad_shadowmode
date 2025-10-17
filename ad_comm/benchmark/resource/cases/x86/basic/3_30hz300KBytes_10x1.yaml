@@ -1,0 +1,78 @@
+description: "10 pub, 1 sub, simulate component_state topic 10-1"
+case_content:
+  - node_name: "node_a"
+    timeout_s: 60
+    pubs:
+    - channel_name: "channel_1"
+      hz: 30
+      message_size: 300000
+      reliability: "best_effort"
+  - node_name: "node_b"
+    timeout_s: 60
+    pubs:
+    - channel_name: "channel_1"
+      hz: 30
+      message_size: 300000
+      reliability: "best_effort"
+  - node_name: "node_c"
+    timeout_s: 60
+    pubs:
+    - channel_name: "channel_1"
+      hz: 30
+      message_size: 300000
+      reliability: "best_effort"
+  - node_name: "node_d"
+    timeout_s: 60
+    pubs:
+    - channel_name: "channel_1"
+      hz: 30
+      message_size: 300000
+      reliability: "best_effort"
+  - node_name: "node_e"
+    timeout_s: 60
+    pubs:
+    - channel_name: "channel_1"
+      hz: 30
+      message_size: 300000
+      reliability: "best_effort"
+  - node_name: "node_f"
+    timeout_s: 60
+    pubs:
+    - channel_name: "channel_1"
+      hz: 30
+      message_size: 300000
+      reliability: "best_effort"
+  - node_name: "node_g"
+    timeout_s: 60
+    pubs:
+    - channel_name: "channel_1"
+      hz: 30
+      message_size: 300000
+      reliability: "best_effort"
+  - node_name: "node_h"
+    timeout_s: 60
+    pubs:
+    - channel_name: "channel_1"
+      hz: 30
+      message_size: 300000
+      reliability: "best_effort"
+  - node_name: "node_i"
+    timeout_s: 60
+    pubs:
+    - channel_name: "channel_1"
+      hz: 30
+      message_size: 300000
+      reliability: "best_effort"
+  - node_name: "node_j"
+    timeout_s: 60
+    pubs:
+    - channel_name: "channel_1"
+      hz: 30
+      message_size: 300000
+      reliability: "best_effort"
+  - node_name: "node_k"
+    timeout_s: 70
+    subs:
+    - channel_name: "channel_1"
+      queue_size: 10
+      reliability: "best_effort"

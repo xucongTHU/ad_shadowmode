@@ -1,0 +1,23 @@
+module_config:
+  module_library: "/opt/senseauto_active/senseauto-rscl/example/lib3_example_timer_so.so"
+  timer_components:
+    class_name: "TimerComponentSample"
+    config:
+      name: "timer"
+      interval_ms: 10
+      config_param:
+adlog_config:
+  level: "info"
+  pattern: "%m%d %T.%e [%L]%$ %v"
+  to_console: 0
+  file_root_path: "/tmp/logs"
+  create_dir: true
+  simple_file: true
+  rotating_file: true
+  file_max_size_mb: 1
+  file_max_cnt:  3
+  async: false
+  async_thread_nums: 1
+  async_queue_length: 8192
+  async_overflow_policy: 0
+

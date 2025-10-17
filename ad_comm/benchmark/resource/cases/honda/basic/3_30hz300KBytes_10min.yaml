@@ -1,0 +1,15 @@
+description: "30hz 300KB, run 10min for mem check"
+case_content:
+  - node_name: "node_a"
+    timeout_s: 600
+    pubs:
+    - channel_name: "/canbus/vehicle_report"
+      hz: 30
+      message_size: 300000
+      reliability: "best_effort"
+  - node_name: "node_b"
+    timeout_s: 610
+    subs:
+    - channel_name: "/canbus/vehicle_report"
+      queue_size: 10
+      reliability: "best_effort"

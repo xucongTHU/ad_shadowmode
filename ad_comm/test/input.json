@@ -1,0 +1,26 @@
+{
+    "input_config": {
+        "base_path": "./",
+        "inputs": [
+        ]
+    },
+    "rsclbag_config": {
+        "exclude_topic": [
+            ""
+        ],
+        "filename": [
+            "small_bag.00000.rsclbag"
+        ],
+        "topic": [
+            "/canbus/mrr",
+            "/canbus/act_acan",
+            "/canbus/chassis_acan",
+            "/canbus/vehicle_report",
+            "/sensor/radar",
+            "/holo/road_structure",
+            "/sensor/gnss",
+            "/sensor/imu",
+            "/sensor/ins"
+        ]
+    }
+}
