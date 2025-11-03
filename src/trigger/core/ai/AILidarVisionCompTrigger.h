@@ -1,12 +1,23 @@
+/*******************************************************************
+* Copyright (c) 2025 T3CAIC. All rights reserved.
+*
+* @file AILidarVisionCompTrigger.h
+* @brief 雷达与视觉的结果进行对比
+*
+* @author maqiang
+* @date 2025-06
+*******************************************************************/
 #pragma once
 
 // 中间件，消息接口头文件
-#include "ad_interface.h"
-#include "cm/cm.h"
-#include "pattern/AdapterManager.hpp"
+#include "ad_rscl/ad_rscl.h"
 
+// trigger base
 #include "trigger/base/TriggerFactory.hpp"
 #include "trigger/common/TriggerConditionChecker.h"
+
+// 消息类型
+#include "ad_msg_idl/perception/perception.capnp.h"
 #include "trigger/core/ai/AIMsgBase.h"
 #include "trigger/core/ai/HungarianOptimizer.h"
 
@@ -26,7 +37,7 @@ class AILidarVisionCompTrigger : public TriggerBase {
       1.视觉和雷达感知结果目标个数不一致
       2.匹配上的视觉和雷达结果距离超过阈值
   */
-  
+
 
  public:
   using VisionPtr = std::shared_ptr<AIVisionModelOutput>;
@@ -37,7 +48,7 @@ class AILidarVisionCompTrigger : public TriggerBase {
    * @param nh 通信节点
    * @param fromConfig 是否从配置文件中初始化算子（单元测试的时候，不需要从配置文件中更新）
    */
-  explicit AILidarVisionCompTrigger(stoic::cm::NodeHandle& nh, bool fromConfig=true);
+  explicit AILidarVisionCompTrigger(bool fromConfig=true);
   ~AILidarVisionCompTrigger();
 
   /**
@@ -52,51 +63,17 @@ class AILidarVisionCompTrigger : public TriggerBase {
   bool CheckCondition() override;
 
   /**
-   * @brief 触发通知
-   */
-  void NotifyTriggerContext(TriggerContext context) override;
-
-  /**
    * @brief 获取当前算子名字
    */
   std::string GetTriggerName() const override;
 
   /**
-   * @brief 获取算子优先级
-   */
-  int8_t GetPriority() const override;
-
-  /**
-   * @brief 获取算子状态（仅用于单元测试）
-   * @return 算子当前状态
-   */
-  bool GetStatus();
-  
-  /**
-   * @brief 更新算子状态（仅用于单元测试）
-   * @param status 要设置的状态，true或false
-   */
-  void UpdateStatus(bool status);
-
-  /**
-   * @brief 更新算子内部功能
-   * @param enable 算子内部功能
-   */
-  void UpdateTriggerEnable(int enable);
-
-  /**
    * @brief 视觉感知结果回调函数
-   * @param msg 视觉感知消息
    * @param topic 话题名
+   * @param msg raw消息
    */
-  void VisionCallback(const AIVisionModelOutput&, const std::string&);
-
-  /**
-   * @brief 雷达感知结果回调函数
-   * @param msg 雷达感知消息
-   * @param topic 话题名
-   */
-  void LidarCallback(const AILidarModelOutput&, const std::string&);
+  void OnMessageReceived(const std::string& topic,
+                         const TRawMessagePtr& msg) override;
 
   /**
    * @brief 是否开启debug模式
@@ -160,7 +137,7 @@ class AILidarVisionCompTrigger : public TriggerBase {
   bool enableFlag = false;
   int triggerEnable = TRIGGER_PERCEPTION_CNT | TRIGGER_POSITION_DIFF;
   int8_t triggerPriority = 0;
-  
+
   // 帧同步类
   std::mutex msgMtx;
   VisionPtr visionMsg = std::make_shared<AIVisionModelOutput>();
@@ -176,10 +153,6 @@ class AILidarVisionCompTrigger : public TriggerBase {
 
   // hungarian优化
   HungarianOptimizer<float> optimizer;
-
-  // 当前算子状态
-  bool triggerStatus = false;
-  std::mutex statusMtx;
 };
 
 REGISTER_TRIGGER(AILidarVisionCompTrigger)

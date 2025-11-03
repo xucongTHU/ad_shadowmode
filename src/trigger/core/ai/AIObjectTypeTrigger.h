@@ -1,12 +1,23 @@
+/*******************************************************************
+* Copyright (c) 2025 T3CAIC. All rights reserved.
+*
+* @file AIObjectTypeTrigger.h
+* @brief 目标类型算子
+*
+* @author maqiang
+* @date 2025-06
+*******************************************************************/
 #pragma once
 
 // 中间件，消息接口头文件
-#include "ad_interface.h"
-#include "cm/cm.h"
-#include "pattern/AdapterManager.hpp"
+#include "ad_rscl/ad_rscl.h"
 
+// trigger base
 #include "trigger/base/TriggerFactory.hpp"
 #include "trigger/common/TriggerConditionChecker.h"
+
+// 消息类型
+#include "ad_msg_idl/perception/perception.capnp.h"
 #include "trigger/core/ai/AIMsgBase.h"
 
 namespace shadow::trigger {
@@ -30,7 +41,7 @@ class AIObjectTypeTrigger : public TriggerBase {
    * @param nh 通信阶段
    * @param fromConfig 是否从配置文件中初始化参数（仅在单元测试的时候为false）
    */
-  explicit AIObjectTypeTrigger(stoic::cm::NodeHandle& nh, bool fromConfig=true);
+  explicit AIObjectTypeTrigger(bool fromConfig=true);
   ~AIObjectTypeTrigger();
 
   /**
@@ -44,48 +55,19 @@ class AIObjectTypeTrigger : public TriggerBase {
    * @return 算子当前状态
    */
   bool CheckCondition();
-    
-  /**
-   * @brief 触发通知
-   */
-  void NotifyTriggerContext(TriggerContext context) override;
-  
+
   /**
    * @brief 获取当前算子名字
    */
   std::string GetTriggerName() const override;
 
-  /**
-   * @brief 获取算子优先级
-   */
-  int8_t GetPriority() const override;
-
-  /**
-   * @brief 获取算子状态
-   * @return 算子状态
-   */
-  bool GetStatus();
-
    /**
-   * @brief 更新算子状态
-   * @param status 带设定的状态
-   */
-  void UpdateStatus(bool status);
-
-  /**
-   * @brief 视觉检测回调函数（为单元测试调整为public）
-   * @param msg 视觉检测结果消息
+   * @brief 视觉感知结果回调函数
    * @param topic 话题名
+   * @param msg raw消息
    */
-  void VisionCallback(const AIDetectModelOutput& msg, const std::string& topic);
-  
-  /**
-   * @brief 路况消息回调函数（为单元测试调整为public）
-   * @param msg 路况消息
-   * @param topic 话题名
-   */
-  void RoadConditionCallback(const AIRoadConditionOutput &msg,
-                             const std::string &topic);
+  void OnMessageReceived(const std::string& topic,
+                         const TRawMessagePtr& msg) override;
 
   /**
    * @brief 是否开启debug模式
@@ -98,7 +80,7 @@ class AIObjectTypeTrigger : public TriggerBase {
    * @brief 判断是否满足
    */
   void JudgeObjectType();
-  
+
   /**
    * @brief 当前算子使能功能初始化
    */
@@ -124,10 +106,7 @@ class AIObjectTypeTrigger : public TriggerBase {
   std::unique_ptr<TriggerConditionChecker> conditionChecker = nullptr;
   std::unordered_map<std::string, TriggerConditionChecker::Value> vars;
 
-  // 算子状态
-  bool triggerStatus = false;
-  std::mutex statusMtx;
-  int targetTypeIdx = 0;
+  int64_t targetTypeIdx = 0;
 
   // 存放算子消息变量
   std::mutex msgMtx;
@@ -136,34 +115,52 @@ class AIObjectTypeTrigger : public TriggerBase {
 
   // 数据类型以及对应name映射
   std::unordered_map<uint8_t, int> classTypeMap = {
-      { 0,   1 },  // 人
-      { 1,   2 },  // 自行车
-      { 2,   3 },  // 轿车
-      { 3,   4 },  // 摩托车
-      { 5,   5 },  // 公交车
-      { 7,   6 },  // 货车
-      { 9,   7 },  // 交通灯
-      { 10,  8 },  // 消防栓
-      { 11,  9 },  // 停止标志牌
-      { 16,  10 },  // 狗
+      { 1,   1 },   // 人
+      { 2,   2 },   // 车辆
+      { 3,   3 },   // 车辆 car
+      { 4,   4 },   // 车辆 suv
+      { 5,   5 },   // 车辆 van
+      { 6,   6 },   // 车辆 truck
+      { 7,   7 },   // 车辆 pickup_truck
+      { 8,   8 },   // 车辆 bus
+      { 9,   9 },   // 车辆 taxi
+      { 10,  10 },  // 车辆 emergency
+      { 11,  11 },  // 车辆 school_bus
+      { 12,  12 },  // 车辆 others
+      { 14,  13 },  // 自行车
+      { 15,  14 },  // 无人车
+      { 16,  15 },  // 自行车 bicycle
+      { 17,  16 },  // 自行车 bikebig
+      { 18,  17 },  // 自行车 bikesmall
+      { 65,  18 },  // 交通牌
+      { 137, 19 },  // GATE
+      { 138, 20 },  // TRAIN
+      { 139, 21 },  // WARNING PILLAR
+      { 140, 22 },  // ROAD CONE
   };
 
   std::unordered_map<EMWeatherType, int> weatherTypeMap = {
-      { EMWeatherType::WEATHER_SUNNY,    11 },
-      { EMWeatherType::WEATHER_RAINY,    12 },
-      { EMWeatherType::WEATHER_OVERCAST, 13 },
+      { EMWeatherType::WEATHER_UNKNOW,    23 },
+      { EMWeatherType::WEATHER_OVERCAST,  24 },
+      { EMWeatherType::WEATHER_SUNNY,     25 },
+      { EMWeatherType::WEATHER_RAINY,     26 },
+      { EMWeatherType::WEATHER_FOGGY,     27 },
+      { EMWeatherType::WEATHER_SNOWY,     28 },
+      { EMWeatherType::WEATHER_SANDY,     29 },
+      { EMWeatherType::WEATHER_OTHERS,    30 },
   };
 
   std::unordered_map<EMRoadType, int> roadTypeMap = {
-      { EMRoadType::ROAD_URBAN,   14 },
-      { EMRoadType::ROAD_HIGHWAY, 15 },
-      { EMRoadType::ROAD_BRIDGE,  16 },
-      { EMRoadType::ROAD_TUNNEL,  17 }
+      { EMRoadType::ROAD_UNKNOW,       31 },
+      { EMRoadType::ROAD_OPEN_ROAD,    32 },
+      { EMRoadType::ROAD_CLOSED_ROAD,  33 },
+      { EMRoadType::ROAD_TUNNEL,       34 }
   };
 
   std::unordered_map<EMTimeType, int> timeTypeMap = {
-      { EMTimeType::TIME_DAY,   18 },
-      { EMTimeType::TIME_NIGHT, 19 },
+      { EMTimeType::TIME_UNKNOW,       35 },
+      { EMTimeType::TIME_DAYTIME,      36 },
+      { EMTimeType::TIME_NIGHT_BRIGHT, 37 },
   };
 };
 

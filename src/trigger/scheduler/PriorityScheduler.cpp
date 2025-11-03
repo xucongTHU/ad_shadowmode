@@ -17,7 +17,7 @@ PriorityScheduler::PriorityScheduler(std::shared_ptr<ThreadPool> threadPool)
 
 PriorityScheduler::~PriorityScheduler() {
     stop_scheduling_.store(true);
-    condition_.notify_all();  
+    condition_.notify_all();
     if (scheduling_thread_.joinable()) {
         scheduling_thread_.join();
     }
@@ -31,68 +31,66 @@ void PriorityScheduler::AddTask(TriggerTask task) {
 
 void PriorityScheduler::StartScheduling() {
     std::lock_guard<std::mutex> lock(queue_mutex_);
-    
+
     if (!scheduling_thread_.joinable()) {
         scheduling_thread_ = std::thread(&PriorityScheduler::ScheduleTasks, this);
     }
-    
+
     condition_.notify_one();
 }
 
 void PriorityScheduler::ScheduleTasks() {
-    while (!stop_scheduling_.load()) {
+#if 1
         ProcessOneTriggerQueue();
-        // ProcessMultiTriggerQueue();
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    }
+#else
+        ProcessMultiTriggerQueue();
+#endif
 }
 
 //plan A: support only one trigger, for priority
 void PriorityScheduler::ProcessOneTriggerQueue() {
-    std::vector<TriggerTask> saved_tasks;
     while (!stop_scheduling_.load()) {
-        std::vector<TriggerTask> tasks_to_process;
+        std::unique_ptr<TriggerTask> highest_priority_task;
         {
             std::unique_lock<std::mutex> lock(queue_mutex_);
             condition_.wait_for(lock, std::chrono::milliseconds(100), [this] { 
                 return !trigger_queue_.empty() || stop_scheduling_.load(); 
             });
 
-            if (stop_scheduling_.load()) {
-                break;
+            if (stop_scheduling_.load() || trigger_queue_.empty()) {
+                continue;
             }
             
-            while (!trigger_queue_.empty()) {
-                saved_tasks.push_back(trigger_queue_.top());
-                trigger_queue_.pop();
-            }
-            
-            tasks_to_process = saved_tasks;
+            highest_priority_task = std::make_unique<TriggerTask>(std::move(const_cast<TriggerTask&>(trigger_queue_.top())));
+            std::cout << "[PriorityScheduler] Processing for " << highest_priority_task->trigger_name << " with priority(" 
+                       << static_cast<int>(highest_priority_task->priority) << ").\n";
+            trigger_queue_.pop();
         }
 
-        if (!tasks_to_process.empty()) {
-            for (auto& task : tasks_to_process) {
-                thread_pool_->enqueue([this, task]() {
-                    if (!task.cancelled) {
-                        // std::cout << "[PriorityScheduler] Processing for " << task.trigger_name << " with priority(" 
-                        //           << static_cast<int>(task.priority) << ").\n";
-                        task.trigger->Proc();
-                    }
-                });
-            }
+        if (highest_priority_task && !highest_priority_task->cancelled) {
+            thread_pool_->enqueue([this, task = std::move(*highest_priority_task)]() {
+                // std::cout << "[PriorityScheduler] Processing for " << task.trigger_name << " with priority(" 
+                //           << static_cast<int>(task.priority) << ").\n";
+                // task.trigger->Proc();
+                while (!task.cancelled) {
+                    task.trigger->Proc();
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100)); 
+                }
+            });
         }
     }
 }
 
 // plan B: support multiple triggers
 void PriorityScheduler::ProcessMultiTriggerQueue() {
+    // 使用非阻塞方式获取锁，避免线程阻塞
     std::unique_lock<std::mutex> lock(queue_mutex_, std::try_to_lock);
     if (!lock.owns_lock()) {
         return;
     }
 
-    schedule_condition_.wait_for(lock, std::chrono::milliseconds(100), [this]() {
+    // 使用条件变量等待1s, 直到队列不为空或者超时
+    schedule_condition_.wait_for(lock, std::chrono::milliseconds(1000), [this]() {
         return !waiting_queue_.empty() || !running_queue_.empty();
     });
 
@@ -100,31 +98,44 @@ void PriorityScheduler::ProcessMultiTriggerQueue() {
         return;
     }
 
+    // 获取线程池大小和运行中的任务数
     const size_t thread_pool_size = thread_pool_->getThreadCount();
     const size_t running_tasks = running_queue_.size();
-
     while (running_queue_.size() < thread_pool_size && !waiting_queue_.empty()) {
+        // 获取下一个任务
         auto next_task = std::move(const_cast<TriggerTask&>(waiting_queue_.top()));
         waiting_queue_.pop();
-        waiting_priorities_.erase(next_task.priority);  
+        waiting_priorities_.erase(next_task.priority);
 
+        // 设置任务状态为运行中
         next_task.state = TaskState::RUNNING;
         auto task_ptr = std::make_shared<TriggerTask>(next_task);
         lock.unlock();
         // LOG_INFO("Task [%s] started running (priority: %d)", task_ptr->trigger_name.c_str(), task_ptr->priority);
 
+        // 提交任务到线程池
         thread_pool_->enqueue([this, task_ptr]() {
             ExecuteTask(task_ptr);
         });
-        lock.lock();
+        lock.lock(); // 重新获取锁
     }
 
+    // 检查是否需要抢占
     if (!waiting_queue_.empty() && !running_queue_.empty()) {
         CheckPreemption();
     }
 }
 
+/**
+ * @brief 执行指定的触发任务
+ *
+ * 该函数负责处理任务的执行逻辑，包括检查任务是否被取消、
+ * 判断重试间隔、检查触发条件以及根据执行结果决定是否需要重试。
+ *
+ * @param task_ptr 指向待执行任务的智能指针
+ */
 void PriorityScheduler::ExecuteTask(std::shared_ptr<TriggerTask> task_ptr) {
+    // 如果任务已被取消，则直接标记为已完成并通知调度器
     if (task_ptr->cancelled) {
         std::lock_guard<std::mutex> lock(queue_mutex_);
         task_ptr->state = TaskState::FINISHED;

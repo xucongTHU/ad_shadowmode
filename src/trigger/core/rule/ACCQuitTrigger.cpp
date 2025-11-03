@@ -1,6 +1,7 @@
 //
 // Created by xucong on 24-11-27.
-// Copyright (c) 2024 Synaptix AI. All rights reserved.
+// © 2025 Synaptix AI. All rights reserved.
+// Tsung Xu<xucong@synaptix.ai>
 //
 
 #include "ACCQuitTrigger.h"
@@ -26,7 +27,7 @@ bool ACCQuitTrigger::Proc() {
 }
 
 void ACCQuitTrigger::OnMessageReceived(const std::string& topic, const TRawMessagePtr& msg) {
-    if (topic == "/ad_pub_test/accquit") {
+    if (topic == "/caic_pub_test/accquit") {
         UpdateVehicleInfo(msg);
     }
 
@@ -41,9 +42,10 @@ void ACCQuitTrigger::UpdateVehicleInfo(const std::shared_ptr<ReceivedMsg<senseAD
     Updateplanning(planningReportReader);
     
 }
+
 void ACCQuitTrigger::Updateplanning(const senseAD::msg::planning::MCUStateMachineInfo::Reader& report) {
-    accquit_ = ((report.getMcuStateMachene() == senseAD::msg::planning::MCUStateMachineInfo::StateMachine::NOP_ACITVE) && 
-    report.getMcuDrvOverride() == senseAD::msg::planning::MCUStateMachineInfo::Override::BOTH_OVERRIDE);
+    acc_flag_.store(((report.getMcuStateMachene() == senseAD::msg::planning::MCUStateMachineInfo::StateMachine::NOP_ACITVE) && 
+    report.getMcuDrvOverride() == senseAD::msg::planning::MCUStateMachineInfo::Override::BOTH_OVERRIDE), std::memory_order_relaxed);
 }
 
 bool ACCQuitTrigger::CheckCondition() {
@@ -64,20 +66,21 @@ bool ACCQuitTrigger::CheckCondition() {
 
     std::unordered_map<std::string, TriggerConditionChecker::Value> vars;
     {
-        vars["accquit_"] = accquit_;
+        vars["accquit_"] = acc_flag_.load(std::memory_order_relaxed);
     }
 
     bool ok = trigger_checker_.check(vars);
+    LOG_INFO("[ACCQuitTrigger] CheckCondition = %d", ok);
     return ok;
 }
 
-void ACCQuitTrigger::NotifyTriggerContext(const TriggerContext& context) {
-     if (factoryPtr_) {
-        factoryPtr_->OnTriggerContext(context);
-    }
-    // LOG_INFO("Trigger notified: %s (ID: %s, Time: %ld)",
-    //          context.triggerName.c_str(), context.triggerId.c_str(), context.timeStamp);
-}
+// void ACCQuitTrigger::NotifyTriggerContext(const TriggerContext& context) {
+//     if (factoryPtr_) {
+//         factoryPtr_->OnTriggerContext(context);
+//     }
+//     // LOG_INFO("Trigger notified: %s (ID: %s, Time: %ld)",
+//     //          context.triggerName.c_str(), context.triggerId.c_str(), context.timeStamp);
+// }
 
 } // namespace trigger
 } // namespace shadow

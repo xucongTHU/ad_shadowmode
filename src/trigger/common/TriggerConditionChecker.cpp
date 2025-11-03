@@ -83,8 +83,8 @@ TriggerConditionChecker::get_elements() const {
 }
 
 void TriggerConditionChecker::extract_elements(const string& condition) {
-    static const boost::regex compare_re(R"((\w+)\s*(>=|<=|>|=|==|!=)\s*([\d\.]+))", boost::regex::optimize);
-    static const boost::regex bool_re(R"((\w+)\s*(==|!=)\s*(true|false))", boost::regex::icase | boost::regex::optimize);
+    static const boost::regex compare_re(R"((\w+)\s*(>=|<=|>|<|=|==|!=)\s*([\d\.]+))", boost::regex::optimize);
+    static const boost::regex bool_re(R"((\w+)\s*(==|=|!=)\s*(true|false))", boost::regex::icase | boost::regex::optimize);
     static const boost::regex var_re(R"(^\s*\w+\s*$)", boost::regex::optimize);
 
     auto sub_exprs = split_logical_ops(condition);

@@ -1,12 +1,23 @@
+/*******************************************************************
+* Copyright (c) 2025 T3CAIC. All rights reserved.
+*
+* @file AISkipFrameTrigger.h
+* @brief 感知跳帧算子
+*
+* @author maqiang
+* @date 2025-06
+*******************************************************************/
 #pragma once
 
 // 中间件，消息接口头文件
-#include "ad_interface.h"
-#include "cm/cm.h"
-#include "pattern/AdapterManager.hpp"
+#include "ad_rscl/ad_rscl.h"
 
+// trigger base
 #include "trigger/base/TriggerFactory.hpp"
 #include "trigger/common/TriggerConditionChecker.h"
+
+// 消息类型
+#include "ad_msg_idl/perception/perception.capnp.h"
 #include "trigger/core/ai/AIMsgBase.h"
 
 namespace shadow::trigger {
@@ -22,8 +33,8 @@ enum EMAISkipFrameTrigger {
  */
 struct TrackStaus {
   int trackId = -1;
-  int64_t latestStamp = -1;
-  int64_t beginStamp = -1;
+  uint64_t latestStamp = 0;
+  uint64_t beginStamp = 0;
   int trackAge = 0;
   int lostAge = 0;
 
@@ -49,7 +60,7 @@ class AISkipFrameTrigger : public TriggerBase {
    * @param nh 通信节点
    * @param fromConfig 是否从配置文件中初始化算子（单元测试的时候，不需要从配置文件中更新）
    */
-  explicit AISkipFrameTrigger(stoic::cm::NodeHandle& nh, bool fromConfig=true);
+  explicit AISkipFrameTrigger(bool fromConfig=true);
   ~AISkipFrameTrigger();
 
   /**
@@ -62,47 +73,19 @@ class AISkipFrameTrigger : public TriggerBase {
    * @brief 条件判断
    */
   bool CheckCondition() override;
-  
-  /**
-   * @brief 触发通知
-   */
-  void NotifyTriggerContext(TriggerContext context) override;
 
   /**
    * @brief 获取当前算子名字
    */
   std::string GetTriggerName() const override;
 
-  /**
-   * @brief 获取算子优先级
-   */
-  int8_t GetPriority() const override;
-
-  /**
-   * @brief 获取算子状态（仅用于单元测试）
-   * @return 算子当前状态
-   */
-  bool GetStatus();
-
-  /**
-   * @brief 更新算子状态（仅用于单元测试）
-   * @param status 要设置的状态，true或false
-   */
-  void UpdateStatus(bool status);
-
-  /**
-   * @brief 更新算子内部功能
-   * @param enable 算子内部功能
-   */
-  void UpdateTriggerEnable(int enable);
-  
-  /**
-   * @brief 视觉检测结果回调函数
-   * @param msg 视觉感知消息
+   /**
+   * @brief 视觉感知结果回调函数
    * @param topic 话题名
+   * @param msg raw消息
    */
- void VisionCallback(const AIVisionModelOutput&, const std::string&);
-
+  void OnMessageReceived(const std::string& topic,
+                         const TRawMessagePtr& msg) override;
   /**
    * @brief 是否开启debug模式
    * @param _debug 标志位
@@ -140,7 +123,7 @@ class AISkipFrameTrigger : public TriggerBase {
    * @brief 当前算子使能功能初始化
    */
   void EnableFlag();
-  
+
  private:
   // 订阅话题名，默认值仅为单元测试使用
   std::string subTopic = "/test_ai/skip_frame";
@@ -148,7 +131,7 @@ class AISkipFrameTrigger : public TriggerBase {
   int pubRate = 10;
 
   // 感知结果轨迹管理
-  int64_t latestStamp = -1;
+  uint64_t latestStamp = 0;
   std::unordered_map<int, TrackStaus> trackStatus;
 
   // 算子配置文件
@@ -168,11 +151,6 @@ class AISkipFrameTrigger : public TriggerBase {
     { "trackTypeDiff", TRIGGER_OBJECT_INFO },
     { "frameStampDiff", TRIGGER_TIME_DURATION },
   };
-
-  // 当前算子状态
-  bool triggerStatus = false;
-  std::mutex statusMtx;
-  std::mutex triggerEnableMtx;
 };
 
 REGISTER_TRIGGER(AISkipFrameTrigger)

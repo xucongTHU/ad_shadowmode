@@ -1,0 +1,25 @@
+module_config:
+  module_library: "/opt/tmp/ad_shadowmode/lib/libad_shadowmode.so"
+  timer_components:
+    class_name: "ShdowModeContext"
+    config:
+      name: "ShdowModeContext"
+      interval_ms: 1000
+      is_mock_mode: 0
+      config_file_path: ""
+      config_param:
+        arg:
+          node_name: "node_dcl"
+          node_type: "node_dcl"
+          executable: "nothing"
+          additional: "nothing"
+          config_source_folder: "$(optenv launcher_config_folder|/usr/local/senseauto_local)"
+          vehicle_id: "$(optenv launcher_vehicle_id|PT-030)"
+          LOG_level: "$(optenv LOG_level|info)"
+          LOG_tostderr: "$(optenv LOG_tostderr|1)"
+          save_log_path: "$(optenv save_log_path|/tmp/dcl/log)"
+
+        node_param:
+          LOG_level: "$(arg LOG_level)"
+          LOG_tostderr: "$(arg LOG_tostderr)"
+          save_log_path: "$(arg save_log_path)"

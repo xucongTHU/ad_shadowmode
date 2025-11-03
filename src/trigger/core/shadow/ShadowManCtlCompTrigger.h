@@ -1,13 +1,25 @@
+/*******************************************************************
+* Copyright (c) 2025 T3CAIC. All rights reserved.
+*
+* @file ShadowManCtlCompTrigger.h
+* @brief 人机对比算子
+*
+* @author maqiang
+* @date 2025-07
+*******************************************************************/
 #pragma once
 
 // 中间件，消息接口头文件
-#include "ad_interface.h"
-#include "cm/cm.h"
-#include "pattern/AdapterManager.hpp"
+#include "ad_rscl/ad_rscl.h"
 
-#include "common/time/TimeSeriesBuffer.hpp"
+// trigger base
 #include "trigger/base/TriggerFactory.hpp"
 #include "trigger/common/TriggerConditionChecker.h"
+
+// 消息类型
+#include "ad_msg_idl/ad_vehicle/vehicle.capnp.h"
+#include "ad_msg_idl/ad_planning/planning.capnp.h"
+#include "common/time/TimeSeriesBuffer.hpp"
 #include "trigger/core/shadow/ShadowMsgBase.h"
 
 namespace shadow::trigger {
@@ -22,7 +34,7 @@ enum EMShadowManCtlCompTrigger {
 
 // 用于保存接受到消息中有效的数据，减少缓存需要的空间占用
 struct ShadowInnerConditions {
-  int64_t stamp = -1;
+  uint64_t stamp = 0;
   float acc = 0.0f;                    // acc控制值
   float brake = 0.0f;                  // 制动板控制值
   float throttle = 0.0f;               // 油门控制值
@@ -57,7 +69,7 @@ class ShadowManCtlCompTrigger : public TriggerBase {
    * @param nh 通信节点
    * @param fromConfig 是否从配置文件中初始化算子（单元测试的时候，不需要从配置文件中更新）
    */
-  explicit ShadowManCtlCompTrigger(stoic::cm::NodeHandle& nh, bool fromConfig=true);
+  explicit ShadowManCtlCompTrigger(bool fromConfig=true);
   ~ShadowManCtlCompTrigger();
 
   /**
@@ -72,45 +84,17 @@ class ShadowManCtlCompTrigger : public TriggerBase {
   bool CheckCondition() override;
 
   /**
-   * @brief 触发通知
-   */
-  void NotifyTriggerContext(TriggerContext context) override;
-
-  /**
    * @brief 获取当前算子名字
    */
   std::string GetTriggerName() const override;
 
-  /**
-   * @brief 获取算子优先级
-   */
-  int8_t GetPriority() const override;
-
-  /**
-   * @brief 获取算子状态（仅用于单元测试）
-   * @return 算子当前状态
-   */
-  bool GetStatus();
-
-  /**
-   * @brief 更新算子状态（仅用于单元测试）
-   * @param status 要设置的状态，true或false
-   */
-  void UpdateStatus(bool status);
-
-  /**
-   * @brief 控车消息回调函数
-   * @param msg 控车消息
+   /**
+   * @brief 视觉感知结果回调函数
    * @param topic 话题名
+   * @param msg raw消息
    */
-  void CtlCallback(const ShadowModelCtlOutput &msg, const std::string &topic);
-
-  /**
-   * @brief canbus消息回调函数
-   * @param msg canbus消息
-   * @param topic 话题名
-   */
-  void CanCallback(const ad_sensor::Canbus &msg, const std::string &topic);
+  void OnMessageReceived(const std::string& topic,
+                         const TRawMessagePtr& msg) override;
 
   /**
    * @brief 清空已经保存的buffer
@@ -155,8 +139,7 @@ class ShadowManCtlCompTrigger : public TriggerBase {
 
  private:
   // 订阅话题名，默认值仅为单元测试使用
-  std::string subCtlTopic = "/test_shadow/ctl_topic";
-  std::string subCanTopic = "/test_shadow/can_topic";
+  std::string subTopic = "/test_shadow/canbus_topic";
   // 算子判断帧率
   int pubRate = 10;
 
@@ -171,12 +154,15 @@ class ShadowManCtlCompTrigger : public TriggerBase {
 
   // 标定的参数范围
   // 默认值用于单元测试
-  std::vector<float> ctlMinMax = { -10.0f, 10.0f, 0.0f, 200.0f, 0.0f, 1.0f, 
-                          -600.0f, 600.0f, -600.0f, 600.0f};
+  std::vector<float> ctlMinMax = {
+      -10.0f, 10.0f, 0.0f, 200.0f, 0.0f, 1.0f, -600.0f, 600.0f, -600.0f, 600.0f};
 
   bool enableFlag = false;
-  int triggerEnable = TRIGGER_ACC_COMP | TRIGGER_BRAKE_COMP | TRIGGER_THROTTLE_COMP
-                    | TRIGGER_WHEEL_ANGLE_COMP | TRIGGER_WHEEL_ANGULAR_VELOCITY_COMP;
+  int triggerEnable = TRIGGER_ACC_COMP
+                    | TRIGGER_BRAKE_COMP
+                    | TRIGGER_THROTTLE_COMP
+                    | TRIGGER_WHEEL_ANGLE_COMP
+                    | TRIGGER_WHEEL_ANGULAR_VELOCITY_COMP;
 
   // 控制消息与can消息缓存队列
   std::mutex ctlMtx, canMtx;
@@ -185,7 +171,7 @@ class ShadowManCtlCompTrigger : public TriggerBase {
   size_t ctlDurationCnt, canDurationCnt; // 满足时间范围的最小帧数要求
   std::unique_ptr<SeriesBuffer> ctlBufferPtr = nullptr;
   std::unique_ptr<SeriesBuffer> canBufferPtr = nullptr;
-  
+
   // 条件判断
   std::unique_ptr<TriggerConditionChecker> conditionChecker = nullptr;
   std::unordered_map<std::string, TriggerConditionChecker::Value> vars;
@@ -197,11 +183,6 @@ class ShadowManCtlCompTrigger : public TriggerBase {
     { "ctlWheelAngleDiff", TRIGGER_WHEEL_ANGLE_COMP },
     { "ctlWheelAngularVelocityDiff", TRIGGER_WHEEL_ANGULAR_VELOCITY_COMP },
   };
-
-  // 当前算子状态
-  bool triggerStatus = false;
-  std::mutex statusMtx;
-  std::mutex triggerEnableMtx;
 };
 
 REGISTER_TRIGGER(ShadowManCtlCompTrigger)

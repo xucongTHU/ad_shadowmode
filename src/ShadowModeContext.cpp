@@ -13,7 +13,7 @@
 #include "trigger/scheduler/PriorityScheduler.h"
 #include "trigger/core/rule/ACCQuitTrigger.h"
 #include "trigger/core/rule/AEBActiveTrigger.h"
-#include "trigger/core/rule/AVPTakeoverTrigger.h"       
+#include "trigger/core/rule/AVPTakeoverTrigger.h"
 #include "trigger/core/rule/CNOPQuitTrigger.h"
 #include "trigger/core/rule/CNOPTakeoverTrigger.h"
 #include "trigger/core/rule/CurveDynamicDetectionTrigger.h"
@@ -29,6 +29,13 @@
 #include "trigger/core/rule/SlopeDetectionTrigger.h"
 #include "trigger/core/rule/SnakeDrivingDetectionTrigger.h"
 
+#include "trigger/core/ai/AILidarVisionCompTrigger.h"
+#include "trigger/core/ai/AIObjectTypeTrigger.h"
+#include "trigger/core/ai/AISkipFrameTrigger.h"
+
+#include "trigger/core/shadow/ShadowABModelTrigger.h"
+#include "trigger/core/shadow/ShadowManCtlCompTrigger.h"
+
 namespace shadow {
 
 static const char* LOG_TAG = "ShadowMode";
@@ -36,52 +43,44 @@ static std::string kAppConfigPath = "/config/app_config.json";
 static std::string kStrategyConfigPath = "/config/strategy_config.json";
 
 bool ShadowModeContext::OnInit() {
-    // 初始化线程池
     thread_pool_ = std::make_shared<ThreadPool>(4);
-    // const auto& debug_config = AppConfig::getInstance().GetConfig().debug;
-    
-    // 初始化配置
+    const auto& debug_config = AppConfig::getInstance().GetConfig().debug;
+
     bool ok = InitConfig();
     CHECK_AND_RETURN(ok, ShadowModeContext, "InitConfig failed", false);
-    
-    // 初始化日志
+
     ok = InitLogger();
     CHECK_AND_RETURN(ok, ShadowModeContext, "InitLogger failed", false);
-    
-    // 系统自检
+
     ok = Selfcheck();
     CHECK_AND_RETURN(ok, ShadowModeContext, "Selfcheck failed", false);
 
-    // 初始化运行时节点node
     auto rt = senseAD::rscl::GetCurRuntime();
     local_node_ = rt->CreateNode("shadow_" + std::to_string(getpid()),
                            rscl::INTERNAL_NODE_SPACE);
-    // 初始化策略解析器
+
     ok = InitStrategey();
     CHECK_AND_RETURN(ok, ShadowModeContext, "InitStrategey failed", false);
-    
-    // 初始化触发模块
+
     ok = InitTrigger();
     CHECK_AND_RETURN(ok, ShadowModeContext, "InitTrigger failed", false);
-    
-    // 初始化数据上报模块
+
     ok = InitDataReporter();
     CHECK_AND_RETURN(ok, ShadowModeContext, "InitDataReporter failed", false);
 
-    // 初始化数据采集模块
     ok = InitDataCollection();
     CHECK_AND_RETURN(ok, ShadowModeContext, "InitDataCollection failed", false);
-    
-    // 初始化channel管理器
+
     channel_manager_ = std::make_shared<channel::RsclChannelManager>();
     auto recorder = data_storage_->GetRsclRecorder();
-    ok = channel_manager_->Init(local_node_, strategy_config_, 
+    ok = channel_manager_->Init(local_node_, strategy_config_,
                                 trigger_factory_, recorder, data_reporter_);
     CHECK_AND_RETURN(ok, ShadowModeContext, "channel_manager Init failed", false);
-    
-    // 初始化数据上传模块
-    ok = InitDataUploader();
-    CHECK_AND_RETURN(ok, ShadowModeContext, "InitDataUploader failed", false);
+
+    if (!debug_config.closeDataUpload) {
+        ok = InitDataUploader();
+        CHECK_AND_RETURN(ok, ShadowModeContext, "InitDataUploader failed", false);
+    }
 
     LOG_INFO("ShadowModeContext Init ok");
 
@@ -95,7 +94,7 @@ bool ShadowModeContext::PostInit() {
 
 bool ShadowModeContext::OnProc() {
     // LOG_INFO("ShadowModeContext timecomponent timer tick");
-    return true; 
+    return true;
 }
 void ShadowModeContext::OnShutdown() {
     LOG_INFO("ShadowModeContext OnShutdown");
@@ -106,7 +105,7 @@ bool ShadowModeContext::InitConfig() {
     std::string AppConfigPath = std::string(getInstallRootPath()) + kAppConfigPath;
     bool ok = AppConfig::getInstance().Init(AppConfigPath);
     CHECK_AND_RETURN(ok, ShadowModeContext, "AppConfig Init failed", false);
-    
+
     return ok;
 }
 
@@ -174,16 +173,15 @@ bool ShadowModeContext::InitStrategey() {
     bool useDefaultConfig = false;
 
     std::string fallbackConfigPath;
-    while (!IsDirExist(StrategyConfigPath)) {
+    while (!std::filesystem::exists(StrategyConfigPath)) {
         auto elapsed = Timer::now_ms()- time_start;
 
         if (elapsed >= appconfig.debug.cloudtimeOutMs) {
             LOG_WARN("Timeout waiting for strategy config file: %s after %lld seconds",
                      StrategyConfigPath.c_str(), elapsed/1000);
-            
-            // 尝试使用默认配置文件
+
             fallbackConfigPath = std::string(getInstallRootPath()) + kDefaultFallbackConfigPath;
-            if (IsDirExist(fallbackConfigPath)) {
+            if (std::filesystem::exists(fallbackConfigPath)) {
                 // LOG_INFO("Using default strategy config file: %s", fallbackConfigPath.c_str());
                 finalConfigPath = fallbackConfigPath;
                 useDefaultConfig = true;
@@ -211,7 +209,7 @@ bool ShadowModeContext::InitStrategey() {
     //     std::lock_guard<std::mutex> lock(strategy_mutex_);
     //     strategy_config_ = cfg;
     // });
-    
+
     {
         std::lock_guard<std::mutex> lock(config_mutex_); // 加锁，确保线程安全
         strategy_config_ = config_reloader_->GetConfig();
@@ -234,29 +232,35 @@ bool ShadowModeContext::InitTrigger() {
     }
 
     trigger_factory_ = std::make_shared<trigger::TriggerFactory>();
-    trigger_factory_->SetNodeHandle(local_node_);
-    // RegisterACCQuitTrigger(trigger_factory_, local_node_);
-    RegisterAEBActiveTrigger(trigger_factory_, local_node_);
-    // RegisterAVPTakeoverTrigger(trigger_factory_, local_node_);
-    // RegisterCNOPQuitTrigger(trigger_factory_, local_node_);
-    // RegisterCNOPTakeoverTrigger(trigger_factory_, local_node_);
-    // RegisterCurveDynamicDetectionTrigger(trigger_factory_, local_node_);
-    // RegisterDriveWheelSlipTrigger(trigger_factory_, local_node_);
-    // RegisterEmergencyAccTrigger(trigger_factory_, local_node_);
-    // RegisterEmergencyBrakingTrigger(trigger_factory_, local_node_);
-    // RegisterEmergencyEvasionTrigger(trigger_factory_, local_node_);
-    // RegisterFCTBActiveTrigger(trigger_factory_, local_node_);
-    // RegisterFCWActiveTrigger(trigger_factory_, local_node_);
-    // RegisterHPATakeoverTrigger(trigger_factory_, local_node_);
-    // RegisterMEBActiveTrigger(trigger_factory_, local_node_);
-    // RegisterRCTBActiveTrigger(trigger_factory_, local_node_);
-    // RegisterSlopeDetectionTrigger(trigger_factory_, local_node_);
-    // RegisterSnakeDrivingDetectionTrigger(trigger_factory_, local_node_);
+
+    RegisterACCQuitTrigger(trigger_factory_);
+    RegisterAEBActiveTrigger(trigger_factory_);
+    RegisterAVPTakeoverTrigger(trigger_factory_);
+    RegisterCNOPQuitTrigger(trigger_factory_);
+    RegisterCNOPTakeoverTrigger(trigger_factory_);
+    RegisterCurveDynamicDetectionTrigger(trigger_factory_);
+    RegisterDriveWheelSlipTrigger(trigger_factory_);
+    RegisterEmergencyAccTrigger(trigger_factory_);
+    RegisterEmergencyBrakingTrigger(trigger_factory_);
+    RegisterEmergencyEvasionTrigger(trigger_factory_);
+    RegisterFCTBActiveTrigger(trigger_factory_);
+    RegisterFCWActiveTrigger(trigger_factory_);
+    RegisterHPATakeoverTrigger(trigger_factory_);
+    RegisterMEBActiveTrigger(trigger_factory_);
+    RegisterRCTBActiveTrigger(trigger_factory_);
+    RegisterSlopeDetectionTrigger(trigger_factory_);
+    RegisterSnakeDrivingDetectionTrigger(trigger_factory_);
+
+    RegisterAILidarVisionCompTrigger(trigger_factory_);
+    RegisterAIObjectTypeTrigger(trigger_factory_);
+    RegisterAISkipFrameTrigger(trigger_factory_);
+    RegisterShadowABModelTrigger(trigger_factory_);
+    RegisterShadowManCtlCompTrigger(trigger_factory_);
 
     trigger_factory_->SetTriggerConfig(strategy_cfg);
     auto threadPool = std::make_shared<ThreadPool>(trigger_factory_->GetThreadPoolSize());
     auto scheduler = std::make_shared<PriorityScheduler>(threadPool);
-    bool ok = trigger_factory_->InitTriggerScheduler(local_node_, scheduler);
+    bool ok = trigger_factory_->InitTriggerScheduler(scheduler);
     CHECK_AND_RETURN(ok, ShadowModeContext, "InitTriggerScheduler failed", false);
 
     trigger_factory_->SetTriggerCallback(std::bind(&ShadowModeContext::OnTrigger, this, std::placeholders::_1));
@@ -350,11 +354,11 @@ void ShadowModeContext::RunTrigger() {
     constexpr int32_t preIntervalSec = 15;
     std::this_thread::sleep_for(std::chrono::seconds(preIntervalSec));
 
-    constexpr int32_t LoopIntervalMs = 10;
+    constexpr int32_t LoopIntervalMs = 100;
     while(!stop.load())
     {
         trigger_factory_->PostTriggerProcess();
-        std::this_thread::sleep_for(std::chrono::milliseconds(LoopIntervalMs));       
+        std::this_thread::sleep_for(std::chrono::milliseconds(LoopIntervalMs));
     }
 
 }
@@ -369,7 +373,7 @@ void ShadowModeContext::OnTrigger(const trigger::TriggerContext& context) {
     if (data_storage_) {
         auto ptr = std::make_shared<trigger::TriggerContext>(context);
         data_storage_->AddTrigger(ptr);
-        // LOG_INFO("Add trigger: %s (id: %s, timestamp: %s)", 
+        // LOG_INFO("Add trigger: %s (id: %s, timestamp: %s)",
         //          context.triggerName.c_str(), context.triggerId.c_str(), UnixSecondsToString(context.timeStamp/1e6).c_str());
     }
 

@@ -1,6 +1,7 @@
 //
 // Created by xucong on 25-5-8.
 // © 2025 Synaptix AI. All rights reserved.
+// Tsung Xu<xucong@synaptix.ai>
 //
 
 #include "SlopeDetectionTrigger.h"
@@ -26,7 +27,7 @@ bool SlopeDetectionTrigger::Proc() {
 
 
 void SlopeDetectionTrigger::OnMessageReceived(const std::string& topic, const TRawMessagePtr& msg) {
-    if (topic == "/ad_pub_test/snake") {
+    if (topic == "/caic_pub_test/snake") {
         UpdateVehicleInfo(msg);
     }
 
@@ -72,14 +73,6 @@ bool SlopeDetectionTrigger::CheckCondition() {
     bool ok = trigger_checker_.check(vars);
     
     return ok;
-}
-
-void SlopeDetectionTrigger::NotifyTriggerContext(const TriggerContext& context) {
-    if (factoryPtr_) {
-        factoryPtr_->OnTriggerContext(context);
-    }
-    // LOG_INFO("Trigger notified: %s (ID: %s, Time: %ld)",
-    //          context.triggerName.c_str(), context.triggerId.c_str(), context.timeStamp);
 }
 
 } // namespace trigger

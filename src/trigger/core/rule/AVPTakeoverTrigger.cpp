@@ -1,6 +1,7 @@
 //
 // Created by xucong on 24-11-27.
-// Copyright (c) 2024 Synaptix AI. All rights reserved.
+// © 2025 Synaptix AI. All rights reserved.
+// Tsung Xu<xucong@synaptix.ai>
 //
 
 #include "AVPTakeoverTrigger.h"
@@ -26,7 +27,7 @@ bool AVPTakeoverTrigger::Proc() {
 }
 
 void AVPTakeoverTrigger::OnMessageReceived(const std::string& topic, const TRawMessagePtr& msg) {
-    if (topic == "/ad_pub_te st/parking") {
+    if (topic == "/caic_pub_te st/parking") {
         UpdateVehicleInfo(msg);
     }
 
@@ -71,14 +72,6 @@ bool AVPTakeoverTrigger::CheckCondition() {
     bool ok = trigger_checker_.check(vars);
     
     return ok;
-}
-
-void AVPTakeoverTrigger::NotifyTriggerContext(const TriggerContext& context) {
-    if (factoryPtr_) {
-        factoryPtr_->OnTriggerContext(context);
-    }
-    // LOG_INFO("Trigger notified: %s (ID: %s, Time: %ld)",
-    //          context.triggerName.c_str(), context.triggerId.c_str(), context.timeStamp);
 }
 
 } // namespace trigger

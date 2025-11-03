@@ -1,6 +1,7 @@
 //
 // Created by xucong on 24-11-27.
-// Copyright (c) 2024 Synaptix AI. All rights reserved.
+// © 2025 Synaptix AI. All rights reserved.
+// Tsung Xu<xucong@synaptix.ai>
 //
 
 #ifndef HPATakeover_TRIGGER_H
@@ -22,13 +23,11 @@ namespace trigger {
 
 class HPATakeoverTrigger : public TriggerBase {
 public:
-    HPATakeoverTrigger(const std::shared_ptr<senseAD::rscl::comm::Node>& node)
-        :node_ptr_(node), trigger_name_("HPATakeoverTrigger") {}
+    HPATakeoverTrigger(): trigger_name_("HPATakeoverTrigger") {}
     ~HPATakeoverTrigger() override = default;
 
     bool Proc() override;
     bool CheckCondition() override;
-    void NotifyTriggerContext(const TriggerContext& context) override;
     std::string GetTriggerName() const override { return trigger_name_; }
     void OnMessageReceived(const std::string& topic, const TRawMessagePtr& msg) override;
 

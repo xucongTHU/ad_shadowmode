@@ -1,6 +1,7 @@
 //
 // Created by xucong on 24-11-27.
-// Copyright (c) 2024 Synaptix AI. All rights reserved.
+// © 2025 Synaptix AI. All rights reserved.
+// Tsung Xu<xucong@synaptix.ai>
 //
 
 #include "AEBActiveTrigger.h"
@@ -26,7 +27,7 @@ bool AEBActiveTrigger::Proc() {
 }
 
 void AEBActiveTrigger::OnMessageReceived(const std::string& topic, const TRawMessagePtr& msg) {
-    if (topic == "/ad_pub_test/statemachine") {
+    if (topic == "/caic_pub_test/statemachine") {
         UpdateVehicleInfo(msg);
     }
 
@@ -43,8 +44,7 @@ void AEBActiveTrigger::UpdateVehicleInfo(const std::shared_ptr<ReceivedMsg<sense
 }
 
 void AEBActiveTrigger::UpdateASStateMachine(const senseAD::msg::tap::AsCmdLgSafe::Reader& report) {
-    aeb_active = (report.getShadowMode() == 3); 
-    return;
+    aeb_flag_.store(report.getShadowMode() == 3, std::memory_order_relaxed);
 }
 
 bool AEBActiveTrigger::CheckCondition() {
@@ -64,19 +64,12 @@ bool AEBActiveTrigger::CheckCondition() {
     }
 
     std::unordered_map<std::string, TriggerConditionChecker::Value> vars;
-    vars["aeb_active"] = true; //aeb_active;
+    vars["aeb_active"] = aeb_flag_.load(std::memory_order_relaxed); //aeb_active;
 
     bool ok = trigger_checker_.check(vars);
-    
-    return ok;
-}
+    LOG_INFO("[AEBActiveTrigger] CheckCondition = %d", ok);
 
-void AEBActiveTrigger::NotifyTriggerContext(const TriggerContext& context) {
-    if (factoryPtr_) {
-        factoryPtr_->OnTriggerContext(context);
-    }
-    // LOG_INFO("Trigger notified: %s (ID: %s, Time: %ld)",
-    //          context.triggerName.c_str(), context.triggerId.c_str(), context.timeStamp);
+    return ok;
 }
 
 } // namespace trigger

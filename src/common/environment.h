@@ -1,9 +1,3 @@
-//
-// Created by xucong on 25-5-7.
-// © 2025 Synaptix AI. All rights reserved.
-// Tsung Xu<xucong@synaptix.ai>
-//
-
 #pragma once
 
 #include <stdlib.h>
@@ -16,12 +10,12 @@ namespace shadow {
 namespace common {
 
 inline char* getInstallRootPath() {
-  char* install_root_path = getenv("AD_SHADOWMODE_INSTALL_ROOT_PATH");
+  char* install_root_path = getenv("INSTALL_ROOT_PATH");
   if (NULL != install_root_path) {
     return install_root_path;
   } else {
     std::cerr
-        << "the environment variable 'AD_SHADOWMODE_INSTALL_ROOT_PATH' has not been set. "
+        << "the environment variable 'INSTALL_ROOT_PATH' has not been set. "
            "Please refer to the environment variable setting document on the relevant platform."
         << std::endl;
     exit(-1);
@@ -29,12 +23,12 @@ inline char* getInstallRootPath() {
 }
 
 inline char* getResourceRootPath() {
-  char* install_root_path = getenv("AD_SHADOWMODE_RESOURCE_ROOT_PATH");
+  char* install_root_path = getenv("T3CAIC_RESOURCE_ROOT_PATH");
   if (NULL != install_root_path) {
     return install_root_path;
   } else {
     std::cerr
-        << "the environment variable 'AD_SHADOWMODE_RESOURCE_ROOT_PATH' has not been set. "
+        << "the environment variable 'T3CAIC_RESOURCE_ROOT_PATH' has not been set. "
            "Please refer to the environment variable setting document on the relevant platform."
         << std::endl;
     exit(-1);

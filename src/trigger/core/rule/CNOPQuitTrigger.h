@@ -1,6 +1,7 @@
 //
 // Created by xucong on 24-11-27.
-// Copyright (c) 2024 Synaptix AI. All rights reserved.
+// © 2025 Synaptix AI. All rights reserved.
+// Tsung Xu<xucong@synaptix.ai>
 //
 
 #ifndef CNOPQuit_TRIGGER_H
@@ -14,19 +15,17 @@
 #include "trigger/common/TriggerConditionChecker.h"
 #include "ad_msg_idl/ad_vehicle/vehicle.capnp.h"
 #include "ad_msg_idl/ad_planning/planning.capnp.h"
-static bool cnopquit_ = false;
+
 namespace shadow {
 namespace trigger {
 
 class CNOPQuitTrigger : public TriggerBase {
 public:
-     CNOPQuitTrigger(const std::shared_ptr<senseAD::rscl::comm::Node>& node) 
-        : node_ptr_(node), trigger_name_("CNOPQuitTrigger"){};
+     CNOPQuitTrigger(): trigger_name_("CNOPQuitTrigger"){};
     ~CNOPQuitTrigger() override = default;
 
     bool Proc() override;
     bool CheckCondition() override;
-    void NotifyTriggerContext(const TriggerContext& context) override;
     std::string GetTriggerName() const override { return trigger_name_; }
     void OnMessageReceived(const std::string& topic, const TRawMessagePtr& msg) override;
 
@@ -42,9 +41,8 @@ private:
     TriggerConditionChecker trigger_checker_;
     bool debug = false;
     bool triggerStatus = false;
-    // bool cnopquit_ = false;
-
-    std::atomic<bool> cnopFlag_{false};
+    std::atomic<bool> cnop_flag_{false};
+ 
 
 };
 

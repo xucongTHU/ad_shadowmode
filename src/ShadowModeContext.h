@@ -68,8 +68,6 @@ private:
     bool InitDataReporter();
     void OnTrigger(const trigger::TriggerContext& context);
 
-    bool FsmTransmission(FsmState new_state);
-
     void UpdateStateMachine();
 
 private:

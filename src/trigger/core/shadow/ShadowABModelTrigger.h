@@ -1,14 +1,25 @@
+/*******************************************************************
+* Copyright (c) 2025 T3CAIC. All rights reserved.
+*
+* @file ShadowABModelTrigger.h
+* @brief shadow模式：AB模型
+*
+* @author maqiang
+* @date 2025-06
+*******************************************************************/
 #pragma once
 
 // 中间件，消息接口头文件
-#include "ad_interface.h"
-#include "cm/cm.h"
-#include "pattern/AdapterManager.hpp"
+#include "ad_rscl/ad_rscl.h"
 
+// trigger base
 #include "trigger/base/TriggerFactory.hpp"
 #include "trigger/common/TriggerConditionChecker.h"
-#include "trigger/core/ai/HungarianOptimizer.h"
+
+// 消息类型
+#include "ad_msg_idl/perception/perception.capnp.h"
 #include "trigger/core/shadow/ShadowMsgBase.h"
+#include "trigger/core/ai/HungarianOptimizer.h"
 
 namespace shadow::trigger {
 
@@ -37,7 +48,7 @@ class ShadowABModelTrigger : public TriggerBase {
    * @param nh 通信节点
    * @param fromConfig 是否从配置文件中初始化算子（单元测试的时候，不需要从配置文件中更新）
    */
-  explicit ShadowABModelTrigger(stoic::cm::NodeHandle& nh, bool fromConfig=true);
+  explicit ShadowABModelTrigger(bool fromConfig=true);
   ~ShadowABModelTrigger();
 
   /**
@@ -52,45 +63,24 @@ class ShadowABModelTrigger : public TriggerBase {
   bool CheckCondition() override;
 
   /**
-   * @brief 触发通知
-   */
-  void NotifyTriggerContext(TriggerContext context) override;
-
-  /**
    * @brief 获取当前算子名字
    */
   std::string GetTriggerName() const override;
 
-  /**
-   * @brief 获取算子优先级
-   */
-  int8_t GetPriority() const override;
-
-  /**
-   * @brief 获取算子状态（仅用于单元测试）
-   * @return 算子当前状态
-   */
-  bool GetStatus();
-
-  /**
-   * @brief 更新算子状态（仅用于单元测试）
-   * @param status 要设置的状态，true或false
-   */
-  void UpdateStatus(bool status);
-
-  /**
-   * @brief 检测结果回调函数
-   * @param msg 视觉感知消息
+   /**
+   * @brief 视觉感知结果回调函数
    * @param topic 话题名
+   * @param msg raw消息
    */
-  void ModelCallback(const ShadowDetectModelOutput&, const std::string&);
+  void OnMessageReceived(const std::string& topic,
+                         const TRawMessagePtr& msg) override;
 
   /**
    * @brief 是否开启debug模式
    * @param _debug 标志位
    */
   void Debug(bool _debug=true) { debug = _debug; }
-  
+
  private:
   /**
    * @brief 判断AB模型结果
@@ -155,7 +145,7 @@ class ShadowABModelTrigger : public TriggerBase {
    * @brief 当前算子使能功能初始化
    */
   void EnableFlag();
-  
+
  private:
   // 订阅话题名，默认值仅为单元测试使用
   std::string subModelATopic = "/test_shadow/modelA_topic";
@@ -189,10 +179,6 @@ class ShadowABModelTrigger : public TriggerBase {
     { "objectTypeDiff", TRIGGER_OBJECT_TYPE },
     { "objectIOU", TRIGGER_OBJECTIOU },
   };
-
-  // 当前算子状态
-  bool triggerStatus = false;
-  std::mutex statusMtx;
 };
 
 REGISTER_TRIGGER(ShadowABModelTrigger)

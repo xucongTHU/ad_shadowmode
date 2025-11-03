@@ -5,12 +5,12 @@
 
 namespace shadow::trigger {
 
-ShadowManCtlCompTrigger::ShadowManCtlCompTrigger(stoic::cm::NodeHandle& nh, bool fromConfig) {
+ShadowManCtlCompTrigger::ShadowManCtlCompTrigger(bool fromConfig){
   if (fromConfig) {
     // 默认配置文件路径
     std::string configPath = std::string(common::getInstallRootPath())
                             + "/config/ai_shadow_trigger_conf.yaml";
-    LOG_INFO("[ShadowManCtlCompTrigger] Init load configPath=%s", 
+    LOG_INFO("[ShadowManCtlCompTrigger] Init load configPath=%s",
              configPath.c_str());
 
     // 加载配置yaml文件
@@ -24,46 +24,29 @@ ShadowManCtlCompTrigger::ShadowManCtlCompTrigger(stoic::cm::NodeHandle& nh, bool
     }
 
     // debug标志位
-    common::loadNode<bool>(configNode, debug, "debug");
+    ShadowLoadNode<bool>(configNode, debug, "debug");
 
     // 读取当前算子的配置参数
     if (configNode[triggerName].IsDefined()) {
       auto triggerNode = configNode[triggerName];
-      common::loadNode<std::string>(triggerNode, subCtlTopic, "subCtlTopic");
-      common::loadNode<std::string>(triggerNode, subCanTopic, "subCanTopic");
-      common::loadNode<int>(triggerNode, pubRate, "pubRate");
-      common::loadNode<int64_t>(triggerNode, compTimeDuration, 
+      ShadowLoadNode<std::string>(triggerNode, subTopic, "subTopic");
+      ShadowLoadNode<int>(triggerNode, pubRate, "pubRate");
+      ShadowLoadNode<int64_t>(triggerNode, compTimeDuration,
                                 "compTimeDuration");
       compTimeDuration *= SHADOW_TIME_CONVERSION;
-      common::loadNode<int>(triggerNode, ctlRate, "ctlRate");
-      common::loadNode<int>(triggerNode, canRate, "canRate");
-      common::loadNode<float>(triggerNode, bufferExtendRatio, 
+      ShadowLoadNode<int>(triggerNode, ctlRate, "ctlRate");
+      ShadowLoadNode<int>(triggerNode, canRate, "canRate");
+      ShadowLoadNode<float>(triggerNode, bufferExtendRatio,
                               "bufferExtendRatio");
       ctlMinMax.clear();
-      common::loadNode<std::vector<float> >(triggerNode, ctlMinMax, "ctlMinMax");
+      ShadowLoadNode<std::vector<float> >(triggerNode, ctlMinMax, "ctlMinMax");
       int priority = 0;
-      common::loadNode<int>(triggerNode, priority, "priority");
+      ShadowLoadNode<int>(triggerNode, priority, "priority");
       triggerPriority = static_cast<int8_t>(priority);
     } else {
       LOG_WARN("[ShadowManCtlCompTrigger] load config error, use default!");
     }
   }
-
-  // 订阅规划消息
-  synxai::cm::idl::SubscriberConf conf_;
-  conf_.set_pending_queue_size(1);
-  AdapterManager<ShadowModelCtlOutput>::SubscriberBuilder(nh)
-     .topic(subCtlTopic)
-     .subConf(conf_)
-     .subscribe(std::bind(&ShadowManCtlCompTrigger::CtlCallback, this,
-                std::placeholders::_1, std::placeholders::_2));
-
-  // 订阅定位消息
-  ChassisAdapter::SubscriberBuilder(nh)
-     .topic(subCanTopic)
-     .subConf(conf_)
-     .subscribe(std::bind(&ShadowManCtlCompTrigger::CanCallback, this,
-                std::placeholders::_1, std::placeholders::_2));
 
   // 初始化循环队列
   float timeDurationSeconds = static_cast<float>(
@@ -75,8 +58,7 @@ ShadowManCtlCompTrigger::ShadowManCtlCompTrigger(stoic::cm::NodeHandle& nh, bool
   // debug 信息
   if (debug) {
     LOG_INFO("============== ShadowManCtlCompTrigger Config ===========");
-    LOG_INFO("subCtlTopic:          %s", subCtlTopic.c_str());
-    LOG_INFO("subCanTopic:          %s", subCanTopic.c_str());
+    LOG_INFO("subTopic:             %s", subTopic.c_str());
     LOG_INFO("pubRate:              %d", pubRate);
     LOG_INFO("compTimeDuration:     %d", compTimeDuration);
     LOG_INFO("ctlRate:              %d", ctlRate);
@@ -109,33 +91,18 @@ ShadowManCtlCompTrigger::ShadowManCtlCompTrigger(stoic::cm::NodeHandle& nh, bool
 ShadowManCtlCompTrigger::~ShadowManCtlCompTrigger() { }
 
 bool ShadowManCtlCompTrigger::Proc() {
-  common::Rate rate(pubRate);
-  while (stoic::cm::ok()) {
-    std::unique_lock<std::mutex> lck(statusMtx);
+  bool ok = CheckCondition();
+  CHECK_AND_RETURN(ok, AILidarVisionCompTrigger, "CheckCondition failed!", false);
 
-    // 判断算子状态
-    CheckCondition();
+  TriggerContext context;
+  context.timeStamp = common::Timer::now();
+  context.triggerId = trigger_id_;
+  context.triggerName = GetTriggerName();
+  context.businessType = business_type_;
+  context.triggerStatus = TriggerContext::TriggerState::Triggered;
+  NotifyTriggerContext(context);
 
-    {
-      // 如果满足条件，则触发算子，发送消息  
-      if (triggerStatus) {
-        TriggerContext context;
-        context.timeStamp = common::Timer::now();
-        context.triggerId = trigger_obj_ ? trigger_obj_->triggerId : "10";
-        context.triggerName = GetTriggerName();
-        context.triggerStatus = TriggerContext::TriggerState::Triggered;
-
-        NotifyTriggerContext(context); // 调用通知接口
-        
-        if (debug) {
-          LOG_INFO("[ShadowManCtlCompTrigger] trigger status: TRUE");
-        }
-      }
-    }
-    rate.sleep();
-  }
-
-  return true;
+  return ok;
 }
 
 bool ShadowManCtlCompTrigger::CheckCondition() {
@@ -144,83 +111,88 @@ bool ShadowManCtlCompTrigger::CheckCondition() {
 
   // 如果没有要判断的条件，则直接范围（一般是消息还没同步）
   if (vars.empty()) {
-    return triggerStatus;
+    LOG_WARN("[ShadowManCtlCompTrigger] inputIds is empty!");
+    return false;
   } else {
     Clear();   // 如果有满足的条件，则清空ctl和can的缓存buffer
   }
 
   // 2. 条件判断
-  triggerStatus = conditionChecker->check(vars);
+  bool triggerStatus = conditionChecker->check(vars);
 
   // 3. 清空当前需要判断的条件，等待下次
   vars.clear();
 
-  return triggerStatus;
-}
+  if (debug) {
+    LOG_INFO("[ShadowManCtlCompTrigger] CheckCondition = %d", triggerStatus);
+  }
 
-void ShadowManCtlCompTrigger::NotifyTriggerContext(TriggerContext context) {
-    TriggerFactory::Instance().InvokeTriggerCallback(context);
-    LOG_INFO("Trigger notified: %s (ID: %s, Time: %ld)",
-             context.triggerName.c_str(), context.triggerId.c_str(), context.timeStamp);
+  return triggerStatus;
 }
 
 std::string ShadowManCtlCompTrigger::GetTriggerName() const {
   return triggerName;
 }
 
-int8_t ShadowManCtlCompTrigger::GetPriority() const {
-  return  triggerPriority;
-}
+void ShadowManCtlCompTrigger::OnMessageReceived(
+    const std::string& topic, const TRawMessagePtr& msg) {
+  if (topic == subTopic) {
+    if (debug) {
+      LOG_INFO("[ShadowManCtlCompTrigger] get perception msg (%s)", topic.c_str());
+    }
 
-bool ShadowManCtlCompTrigger::GetStatus() {
-  // 获取当前算子状态
-  std::unique_lock<std::mutex> lock(statusMtx);
-  return triggerStatus;
-}
+    kj::ArrayPtr<const capnp::word> vi_kjarr(reinterpret_cast<const capnp::word*>
+        (msg->Bytes()), msg->ByteSize());
+    ::capnp::FlatArrayMessageReader reader(vi_kjarr);
 
-void ShadowManCtlCompTrigger::UpdateStatus(bool status) {
-  // 更新当前算子状态，用于单元测试
-  std::unique_lock<std::mutex> lock(statusMtx);
-  triggerStatus = status;
-}
-
-void ShadowManCtlCompTrigger::CtlCallback(const ShadowModelCtlOutput &msg, const std::string &topic) {
-  if (debug) {
-    LOG_INFO("[ShadowManCtlCompTrigger] get ctl msg (%s), stamp=%ld",
-              topic.c_str(), msg.stamp);
-  }
-
-  {
-    // 存入缓存
-    std::unique_lock<std::mutex> lock(ctlMtx);
+    auto vehicleCmdReader = reader.getRoot<senseAD::msg::vehicle::VehicleCmd>();
     MsgPtr msgPtr = std::make_shared<ShadowInnerConditions>();
-    msgPtr->stamp = msg.stamp;
-    msgPtr->acc = msg.acc;
-    msgPtr->brake = msg.brake;
-    msgPtr->throttle = msg.throttle;
-    msgPtr->wheelAngle = msg.wheelAngle;
-    msgPtr->wheelAngularVelocity = msg.wheelAngularVelocity;
-    ctlBufferPtr->push(msgPtr);
-  }
-}
+    msgPtr->stamp = vehicleCmdReader.getHeader().getTime().getNanoSec();
+    msgPtr->acc = vehicleCmdReader.getAcc().getCommandValue();
+    msgPtr->brake = vehicleCmdReader.getBrake().getCommand();
+    msgPtr->throttle = vehicleCmdReader.getThrottle().getCommand();
+    msgPtr->wheelAngle = vehicleCmdReader.getSteering().getCommand();
+    msgPtr->wheelAngularVelocity = vehicleCmdReader.getSteering().getVelocity();
 
-void ShadowManCtlCompTrigger::CanCallback(const ad_sensor::Canbus &msg, const std::string &topic) {
-  if (debug) {
-    LOG_INFO("[ShadowManCtlCompTrigger] get can msg (%s), stamp=%ld",
-              topic.c_str(), msg.header.stamp);
+    {
+      std::unique_lock<std::mutex> lock(ctlMtx);
+      ctlBufferPtr->push(msgPtr);
+    }
   }
 
-  {
-    // 存入缓存
-    std::unique_lock<std::mutex> lock(canMtx);
-    MsgPtr msgPtr = std::make_shared<ShadowInnerConditions>();
-    msgPtr->stamp = msg.header.stamp;
-    msgPtr->acc = msg.chassis_info.yrs.acceleration_x;
-    msgPtr->brake = msg.chassis_info.esp.master_cylinder_pressure;
-    msgPtr->throttle = msg.chassis_info.esp.acceleration_pedal_position;
-    msgPtr->wheelAngle = msg.chassis_info.eps.steering_wheel_info.angle;
-    msgPtr->wheelAngularVelocity = msg.chassis_info.eps.steering_wheel_info.speed;
-    canBufferPtr->push(msgPtr);
+  if (topic == subTopic) {
+    if (debug) {
+      LOG_INFO("[ShadowManCtlCompTrigger] get perception msg (%s)", topic.c_str());
+    }
+
+    kj::ArrayPtr<const capnp::word> vi_kjarr(reinterpret_cast<const capnp::word*>
+        (msg->Bytes()), msg->ByteSize());
+    ::capnp::FlatArrayMessageReader reader(vi_kjarr);
+
+    auto vehicleReportReader = reader.getRoot<senseAD::msg::vehicle::VehicleReport>();
+    // 读取实际车辆状态（机）
+    MsgPtr canMsgPtr = std::make_shared<ShadowInnerConditions>();
+    canMsgPtr->stamp = vehicleReportReader.getHeader().getTime().getNanoSec();
+    // canMsgPtr->acc = vehicleReportReader.getAcc().getValueActual();
+    canMsgPtr->brake = vehicleReportReader.getBrake().getPercentActual();
+    canMsgPtr->throttle = vehicleReportReader.getThrottle().getPercentActual();
+    canMsgPtr->wheelAngle = vehicleReportReader.getSteering().getAngleActual();
+    // canMsgPtr->wheelAngularVelocity = static_cast<float>(vehicleReportReader.getSteering().getAngleRotspd());
+    {
+      std::unique_lock<std::mutex> lock(canMtx);
+      canBufferPtr->push(canMsgPtr);
+    }
+
+    // 读取实际车辆状态（人？）
+    MsgPtr ctlMsgPtr = std::make_shared<ShadowInnerConditions>();
+    ctlMsgPtr->stamp = vehicleReportReader.getHeader().getTime().getNanoSec();
+    ctlMsgPtr->brake = vehicleReportReader.getBrake().getPercentActual();
+    ctlMsgPtr->throttle = vehicleReportReader.getThrottle().getPercentActual();
+    ctlMsgPtr->wheelAngle = vehicleReportReader.getSteering().getAngleActual();
+    {
+      std::unique_lock<std::mutex> lock(ctlMtx);
+      ctlBufferPtr->push(ctlMsgPtr);
+    }
   }
 }
 
@@ -263,7 +235,7 @@ void ShadowManCtlCompTrigger::GetAverageConds(
   }
 
   // 计算均值
-  if (validCnt > 0) { 
+  if (validCnt > 0) {
     conds.acc /= validCnt;
     conds.brake /= validCnt;
     conds.throttle /= validCnt;
@@ -295,8 +267,8 @@ void ShadowManCtlCompTrigger::JudgeManCtl() {
   // 使用 std::lock 同时枷锁
   std::lock(lock1, lock2);
 
-  // 判断两个buffer中，是否达到指定帧数    
-  if (ctlBufferPtr->size() < ctlDurationCnt 
+  // 判断两个buffer中，是否达到指定帧数
+  if (ctlBufferPtr->size() < ctlDurationCnt
       || canBufferPtr->size() < canDurationCnt) {
     LOG_WARN("[ShadowManCtlCompTrigger] can or ctl buffer size is not enough!");
     return;
@@ -335,7 +307,7 @@ void ShadowManCtlCompTrigger::JudgeManCtl() {
     float acc_diff_ratio = GetRatio(acc_diff, CTL_INDEX_ACC);
     vars["ctlAccDiff"] = static_cast<double>(acc_diff_ratio);
     if (debug) {
-      LOG_INFO("[ShadowManCtlCompTrigger] acc_diff=%f, ctlAccDiff=%f", 
+      LOG_INFO("[ShadowManCtlCompTrigger] acc_diff=%f, ctlAccDiff=%f",
                 acc_diff, acc_diff_ratio);
     }
   }
@@ -346,7 +318,7 @@ void ShadowManCtlCompTrigger::JudgeManCtl() {
     float brake_diff_ratio = GetRatio(brake_diff, CTL_INDEX_BRAKE);
     vars["ctlBrakeDiff"] = static_cast<double>(brake_diff_ratio);
     if (debug) {
-      LOG_INFO("[ShadowManCtlCompTrigger] brake_diff=%f, ctlBrakeDiff=%f", 
+      LOG_INFO("[ShadowManCtlCompTrigger] brake_diff=%f, ctlBrakeDiff=%f",
                brake_diff, brake_diff_ratio);
     }
   }
@@ -357,7 +329,7 @@ void ShadowManCtlCompTrigger::JudgeManCtl() {
     float throttle_diff_ratio = GetRatio(throttle_diff, CTL_INDEX_THROTTLE);
     vars["ctlThrottleDiff"] = static_cast<double>(throttle_diff_ratio);
     if (debug) {
-      LOG_INFO("[ShadowManCtlCompTrigger] throttle_diff=%f, ctlThrottleDiff=%f", 
+      LOG_INFO("[ShadowManCtlCompTrigger] throttle_diff=%f, ctlThrottleDiff=%f",
                throttle_diff, throttle_diff_ratio);
     }
   }
@@ -368,21 +340,21 @@ void ShadowManCtlCompTrigger::JudgeManCtl() {
     float wheelAngle_diff_ratio = GetRatio(wheelAngle_diff, CTL_INDEX_ANGLE);
     vars["ctlWheelAngleDiff"] = static_cast<double>(wheelAngle_diff_ratio);
     if (debug) {
-      LOG_INFO("[ShadowManCtlCompTrigger] wheelAngle_diff=%f, ctlWheelAngleDiff=%f", 
+      LOG_INFO("[ShadowManCtlCompTrigger] wheelAngle_diff=%f, ctlWheelAngleDiff=%f",
                wheelAngle_diff, wheelAngle_diff_ratio);
     }
   }
 
   // wheelAngularVelocity差值
   if (triggerEnable & TRIGGER_WHEEL_ANGULAR_VELOCITY_COMP) {
-    auto wheelAngularVelocity_diff = 
+    auto wheelAngularVelocity_diff =
         averCtlConds.wheelAngularVelocity - averCanConds.wheelAngularVelocity;
-    float wheelAngularVelocity_diff_ratio = 
+    float wheelAngularVelocity_diff_ratio =
         GetRatio(wheelAngularVelocity_diff, CTL_INDEX_ANGULAR_V);
-    vars["ctlWheelAngularVelocityDiff"] = 
+    vars["ctlWheelAngularVelocityDiff"] =
         static_cast<double>(wheelAngularVelocity_diff_ratio);
     if (debug) {
-      LOG_INFO("[ShadowManCtlCompTrigger] wheelAngularVelocity_diff=%f, ctlWheelAngularVelocityDiff=%f", 
+      LOG_INFO("[ShadowManCtlCompTrigger] wheelAngularVelocity_diff=%f, ctlWheelAngularVelocityDiff=%f",
                wheelAngularVelocity_diff, wheelAngularVelocity_diff_ratio);
     }
   }
@@ -399,9 +371,9 @@ void ShadowManCtlCompTrigger::EnableFlag() {
   if (debug) {
     auto elmes = conditionChecker->get_elements();
     for (auto & elem : elmes) {
-      LOG_INFO("Variable: %s | Operator: %s | Threshold: %s | Logic: %s", 
-                elem.variable.c_str(), elem.comparison_op.c_str(), 
-                elem.threshold_str().c_str(), 
+      LOG_INFO("Variable: %s | Operator: %s | Threshold: %s | Logic: %s",
+                elem.variable.c_str(), elem.comparison_op.c_str(),
+                elem.threshold_str().c_str(),
                 (elem.logical_op.empty() ? "Empty" : elem.logical_op).c_str());
     }
   }

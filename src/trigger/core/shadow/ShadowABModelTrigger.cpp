@@ -5,15 +5,14 @@
 
 namespace shadow::trigger {
 
-ShadowABModelTrigger::ShadowABModelTrigger(stoic::cm::NodeHandle& nh, 
-                                           bool fromConfig) {
+ShadowABModelTrigger::ShadowABModelTrigger(bool fromConfig) {
   if (fromConfig) {
     // 默认配置文件路径
     std::string configPath = std::string(common::getInstallRootPath())
                             + "/config/ai_shadow_trigger_conf.yaml";
-    LOG_INFO("[ShadowABModelTrigger] Init load configPath=%s", 
+    LOG_INFO("[ShadowABModelTrigger] Init load configPath=%s",
             configPath.c_str());
-    
+
     // 加载配置文件
     YAML::Node configNode;
     try {
@@ -25,19 +24,19 @@ ShadowABModelTrigger::ShadowABModelTrigger(stoic::cm::NodeHandle& nh,
     }
 
     // debug标志
-    common::loadNode<bool>(configNode, debug, "debug");
+    ShadowLoadNode<bool>(configNode, debug, "debug");
 
     // 读取当前算子的配置参数
     if (configNode[triggerName].IsDefined()) {
       auto triggerNode = configNode[triggerName];
-      common::loadNode<std::string>(triggerNode, subModelATopic, "subModelATopic");
-      common::loadNode<std::string>(triggerNode, subModelBTopic, "subModelBTopic");
-      common::loadNode<int>(triggerNode, pubRate, "pubRate");
-      common::loadNode<int64_t>(triggerNode, frameSyncThresh, "frameSyncThresh");
+      ShadowLoadNode<std::string>(triggerNode, subModelATopic, "subModelATopic");
+      ShadowLoadNode<std::string>(triggerNode, subModelBTopic, "subModelBTopic");
+      ShadowLoadNode<int>(triggerNode, pubRate, "pubRate");
+      ShadowLoadNode<int64_t>(triggerNode, frameSyncThresh, "frameSyncThresh");
       frameSyncThresh *= SHADOW_TIME_CONVERSION;
-      common::loadNode<float>(triggerNode, bboxIouThresh, "bboxIouThresh");
+      ShadowLoadNode<float>(triggerNode, bboxIouThresh, "bboxIouThresh");
       int priority = 0;
-      common::loadNode<int>(triggerNode, priority, "priority");
+      ShadowLoadNode<int>(triggerNode, priority, "priority");
       triggerPriority = static_cast<int8_t>(priority);
     } else {
       LOG_WARN("[ShadowABModelTrigger] load config error, use default!");
@@ -56,22 +55,6 @@ ShadowABModelTrigger::ShadowABModelTrigger(stoic::cm::NodeHandle& nh,
     LOG_INFO("=========================================================");
   }
 
-  // 订阅A模型视觉检测结果
-  synxai::cm::idl::SubscriberConf conf_;
-  conf_.set_pending_queue_size(1);
-  AdapterManager<ShadowDetectModelOutput>::SubscriberBuilder(nh)
-     .topic(subModelATopic)
-     .subConf(conf_)
-     .subscribe(std::bind(&ShadowABModelTrigger::ModelCallback, this,
-                std::placeholders::_1, std::placeholders::_2));
-
-  // 订阅B模型视觉检测结果
-  AdapterManager<ShadowDetectModelOutput>::SubscriberBuilder(nh)
-     .topic(subModelBTopic)
-     .subConf(conf_)
-     .subscribe(std::bind(&ShadowABModelTrigger::ModelCallback, this,
-                std::placeholders::_1, std::placeholders::_2));
-
   // 条件判断初始化
   conditionChecker = std::make_unique<TriggerConditionChecker>();
 }
@@ -79,92 +62,100 @@ ShadowABModelTrigger::ShadowABModelTrigger(stoic::cm::NodeHandle& nh,
 ShadowABModelTrigger::~ShadowABModelTrigger() { }
 
 bool ShadowABModelTrigger::Proc() {
-  common::Rate rate(pubRate);
-  while (stoic::cm::ok()) {
-    {
-      std::unique_lock<std::mutex> lck(statusMtx);
-      // 判断算子状态
-      CheckCondition();
+  bool ok = CheckCondition();
+  CHECK_AND_RETURN(ok, ShadowABModelTrigger, "CheckCondition failed!", false);
 
-      // 如果满足条件，则触发算子，发送消息
-      if (triggerStatus) {
-        TriggerContext context;
-        context.timeStamp = common::Timer::now();
-        context.triggerId = trigger_obj_ ? trigger_obj_->triggerId : "10";
-        context.triggerName = GetTriggerName();
-        context.triggerStatus = TriggerContext::TriggerState::Triggered;
+  TriggerContext context;
+  context.timeStamp = common::Timer::now();
+  context.triggerId = trigger_id_;
+  context.triggerName = GetTriggerName();
+  context.businessType = business_type_;
+  context.triggerStatus = TriggerContext::TriggerState::Triggered;
+  NotifyTriggerContext(context);
 
-        NotifyTriggerContext(context); // 调用通知接口
-        
-        if (debug) {
-          LOG_INFO("[ShadowABModelTrigger] trigger status: TRUE");
-        }
-      }
-    }
-    rate.sleep();
-  }
-
-  return true;
+  return ok;
 }
 
 bool ShadowABModelTrigger::CheckCondition() {
   // 计算AB模型条件
   JudgeABModel();
 
-  // 如果没有要判断的条件，则直接范围（一般是消息还没同步）
+  // 如果没有要判断的条件，则直接返回
   if (vars.empty()) {
-    return triggerStatus;
+    LOG_WARN("[ShadowABModelTrigger] inputIds is empty!");
+    return false;
   }
 
   // 条件判断
-  triggerStatus = conditionChecker->check(vars);
+  bool triggerStatus = conditionChecker->check(vars);
 
   vars.clear();
 
-  return triggerStatus;
-}
+  if (debug) {
+    LOG_INFO("[ShadowABModelTrigger] CheckCondition = %d", triggerStatus);
+  }
 
-void ShadowABModelTrigger::NotifyTriggerContext(TriggerContext context) {
-    TriggerFactory::Instance().InvokeTriggerCallback(context);
-    LOG_INFO("Trigger notified: %s (ID: %s, Time: %ld)",
-             context.triggerName.c_str(), context.triggerId.c_str(), context.timeStamp);
+  return triggerStatus;
 }
 
 std::string ShadowABModelTrigger::GetTriggerName() const {
   return triggerName;
 }
 
-int8_t ShadowABModelTrigger::GetPriority() const {
-  return  triggerPriority;
-}
+void ShadowABModelTrigger::OnMessageReceived(
+    const std::string& topic, const TRawMessagePtr& msg) {
+  if (topic == subModelATopic || topic == subModelBTopic) {
+    if (debug) {
+      LOG_INFO("[ShadowABModelTrigger] get perception msg (%s)", topic.c_str());
+    }
 
-bool ShadowABModelTrigger::GetStatus() {
-  std::unique_lock<std::mutex> lock(statusMtx);
-  return triggerStatus;
-}
+    kj::ArrayPtr<const capnp::word> vi_kjarr(reinterpret_cast<const capnp::word*>
+        (msg->Bytes()), msg->ByteSize());
+    ::capnp::FlatArrayMessageReader reader(vi_kjarr);
 
-void ShadowABModelTrigger::UpdateStatus(bool status) {
-  std::unique_lock<std::mutex> lock(statusMtx);
-  triggerStatus = status;
-}
+    auto objectFrameReader = reader.getRoot<senseAD::msg::perception::ObjectFrame>();
+    uint64_t stamp = objectFrameReader.getHeader().getTime().getNanoSec();
+    uint64_t sensorStamp = objectFrameReader.getFrameTimestampNs();
+    auto objectList = objectFrameReader.getPerceptionObjectList();
 
-void ShadowABModelTrigger::ModelCallback(const ShadowDetectModelOutput& msg, const std::string& topic) {
-  if (debug) {
-    LOG_INFO("[ShadowABModelTrigger] get model msg (%s), stamp=%ld",
-             topic.c_str(), msg.stamp);
-  }
-  
-  std::unique_lock<std::mutex> lck(dataMtx);
-  if (topic == subModelATopic) {
-    modelA->stamp = msg.stamp;
-    modelA->sensorStamp = msg.sensorStamp;
-    modelA->validCnt = msg.validCnt;
-    memcpy(modelA->result, msg.result, sizeof(ShadowDetection) * SHADOW_MAX_DETECT_OBJ);
-  } else {
-    modelB->stamp = msg.stamp;
-    modelB->sensorStamp = msg.sensorStamp;
-    modelB->validCnt = msg.validCnt;
-    memcpy(modelB->result, msg.result, sizeof(ShadowDetection) * SHADOW_MAX_DETECT_OBJ);
+    ShadowDetection detRes[SHADOW_MAX_DETECT_OBJ];
+    int index = 0;
+    for (auto obj : objectList) {
+      if (index >= SHADOW_MAX_DETECT_OBJ) {
+        break;
+      }
+
+      // label
+      detRes[index].classId = static_cast<uint8_t>(obj.getLabel());
+
+      // bbox
+      auto rawDetectionBox = obj.getCameraBboxInfo().getRawDetectionBox();
+      detRes[index].bbox[0] = rawDetectionBox.getTopLeftX();
+      detRes[index].bbox[1] = rawDetectionBox.getTopLeftY();
+      detRes[index].bbox[2] = rawDetectionBox.getBottomRightX();
+      detRes[index].bbox[3] = rawDetectionBox.getBottomRightY();
+      detRes[index].conf = rawDetectionBox.getConfidence();
+      index += 1;
+    }
+
+    if (debug) {
+      LOG_INFO("[ShadowABModelTrigger] msg info: stamp=%u, validCnt=%d", stamp, index);
+    }
+
+    {
+      std::unique_lock<std::mutex> lock(dataMtx);
+      if (topic == subModelATopic) {
+        modelA->stamp = stamp;
+        modelA->sensorStamp = sensorStamp;
+        modelA->validCnt = static_cast<uint8_t>(index);
+        memcpy(modelA->detRes, detRes, SHADOW_MAX_DETECT_OBJ * sizeof(ShadowDetection));
+      } else {
+        modelB->stamp = stamp;
+        modelB->sensorStamp = sensorStamp;
+        modelB->validCnt = static_cast<uint8_t>(index);
+        memcpy(modelB->detRes, detRes, SHADOW_MAX_DETECT_OBJ * sizeof(ShadowDetection));
+      }
+    }
   }
 }
 
@@ -179,9 +170,9 @@ void ShadowABModelTrigger::EnableFlag() {
   if (debug) {
     auto elmes = conditionChecker->get_elements();
     for (auto & elem : elmes) {
-      LOG_INFO("Variable: %s | Operator: %s | Threshold: %s | Logic: %s", 
-                elem.variable.c_str(), elem.comparison_op.c_str(), 
-                elem.threshold_str().c_str(), 
+      LOG_INFO("Variable: %s | Operator: %s | Threshold: %s | Logic: %s",
+                elem.variable.c_str(), elem.comparison_op.c_str(),
+                elem.threshold_str().c_str(),
                 (elem.logical_op.empty() ? "Empty" : elem.logical_op).c_str());
     }
   }
@@ -203,7 +194,10 @@ void ShadowABModelTrigger::JudgeABModel() {
   EnableFlag();
 
   // 判断是否同步
-  if ((modelA->stamp != -1) && (modelB->stamp != -1) && abs(modelA->stamp - modelB->stamp) < frameSyncThresh) {
+  auto timeDiff = (modelA->stamp > modelB->stamp)
+                ? (modelA->stamp - modelB->stamp)
+                : (modelB->stamp - modelA->stamp);
+  if ((modelA->stamp != 0) && (modelB->stamp != 0) && timeDiff < frameSyncThresh) {
     std::unique_lock<std::mutex> lck(dataMtx);
     {
       // AB模型数量
@@ -243,8 +237,8 @@ void ShadowABModelTrigger::JudgeABModel() {
     }
 
     // 清空同步的消息，开始同步下一帧
-    modelA->stamp = -1;
-    modelB->stamp = -1;
+    modelA->stamp = 0;
+    modelB->stamp = 0;
   } else {
     LOG_WARN("[ShadowABModelTrigger] wait sync ...");
   }
@@ -258,7 +252,7 @@ bool ShadowABModelTrigger::JudgeMatchPairType(
     size_t vIdx = matched[i].first;
     size_t lIdx = matched[i].second;
     // 如果存在不一致，则直接返回
-    if (vModelAMsg->result[vIdx].classId != vModelBMsg->result[lIdx].classId) {
+    if (vModelAMsg->detRes[vIdx].classId != vModelBMsg->detRes[lIdx].classId) {
       return true;
     }
   }
@@ -321,7 +315,7 @@ float ShadowABModelTrigger::CalcIou(const float (&bbox1)[4],
               * (bbox1[SHADOW_BBOX_B_INDEX] - bbox1[SHADOW_BBOX_T_INDEX]);
   float areaB = (bbox2[SHADOW_BBOX_R_INDEX] - bbox2[SHADOW_BBOX_L_INDEX])
               * (bbox2[SHADOW_BBOX_B_INDEX] - bbox2[SHADOW_BBOX_T_INDEX]);
-  
+
   // 计算iou
   float areaIou = (iouRight - iouLeft) * (iouBottom - iouTop);
   return areaIou / (areaA + areaB - areaIou);
@@ -336,8 +330,8 @@ void ShadowABModelTrigger::MatchVisionObjects(
     distanceGraph[i].resize(vModelBMsg->validCnt);
     for (int j = 0; j < static_cast<int>(vModelBMsg->validCnt); ++j) {
       // 计算iou
-      float dist = CalcIou(vModelAMsg->result[i].bbox,
-                           vModelBMsg->result[j].bbox);
+      float dist = CalcIou(vModelAMsg->detRes[i].bbox,
+                           vModelBMsg->detRes[j].bbox);
       distanceGraph[i][j] = dist;
     }
   }

@@ -3,6 +3,8 @@ file(GLOB_RECURSE TRIGGER_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/base/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/scheduler/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/core/rule/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/core/ai/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/core/shadow/*.cpp
 )
 
 add_library(trigger SHARED ${TRIGGER_SOURCES})

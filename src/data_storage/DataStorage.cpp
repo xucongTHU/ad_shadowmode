@@ -1,6 +1,7 @@
 //
 // Created by xucong on 25-6-12.
-// Copyright (c) 2025 Synaptix AI . All rights reserved.
+// © 2025 Synaptix AI. All rights reserved.
+// Tsung Xu<xucong@synaptix.ai>
 //
 
 #include "DataStorage.h"
@@ -192,10 +193,10 @@ bool DataStorage::Start() {
         auto ctx = triggerList_.front();
         triggerList_.pop();
         
-        // LOG_INFO("Processed trigger - ID: %s, Name: %s, Timestamp: %lld", 
-        //          ctx->triggerId.c_str(), 
-        //          ctx->triggerName.c_str(), 
-        //          ctx->timeStamp);
+        LOG_INFO("Processed trigger - ID: %s, Name: %s, Timestamp: %lld", 
+                 ctx->triggerId.c_str(), 
+                 ctx->triggerName.c_str(), 
+                 ctx->timeStamp);
         lock.unlock();
         handleTrigger(ctx);
     }

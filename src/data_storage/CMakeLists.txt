@@ -9,7 +9,7 @@ if(CMAKE_MW STREQUAL "CYBER")
     elseif (CMAKE_SYSTEM_PROCESSOR MATCHES arm64)
         target_link_libraries(cyber_recorder
                 common
-                ${cAD_CM_SDK_LIBS}
+                ${caicAD_CM_SDK_LIBS}
                 ${Boost_LIBRARIES}
                 ${GLOG_LIBRARIES}
                 ${PROTOBUF_LIBRARIES}

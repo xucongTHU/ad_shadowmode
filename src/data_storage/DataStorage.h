@@ -1,6 +1,7 @@
 //
 // Created by xucong on 25-6-12.
-// Copyright (c) 2025 Synaptix AI . All rights reserved.
+// © 2025 Synaptix AI. All rights reserved.
+// Tsung Xu<xucong@synaptix.ai>
 //
 
 #ifndef SHADOW_MODE_DATA_STORAGE_H

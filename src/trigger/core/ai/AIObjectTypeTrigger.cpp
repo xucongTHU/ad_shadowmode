@@ -5,14 +5,14 @@
 
 namespace shadow::trigger {
 
-AIObjectTypeTrigger::AIObjectTypeTrigger(stoic::cm::NodeHandle& nh, bool fromConfig) : TriggerBase() {
+AIObjectTypeTrigger::AIObjectTypeTrigger(bool fromConfig) {
   if (fromConfig) {
     // 默认配置文件路径
     std::string configPath = std::string(common::getInstallRootPath())
                             + "/config/ai_shadow_trigger_conf.yaml";
-    LOG_INFO("[AIObjectTypeTrigger] Init load configPath=%s", 
+    LOG_INFO("[AIObjectTypeTrigger] Init load configPath=%s",
             configPath.c_str());
-    
+
     // 加载配置文件
     YAML::Node configNode;
     try {
@@ -24,26 +24,26 @@ AIObjectTypeTrigger::AIObjectTypeTrigger(stoic::cm::NodeHandle& nh, bool fromCon
     }
 
     // debug标志
-    common::loadNode<bool>(configNode, debug, "debug");
+    AILoadNode<bool>(configNode, debug, "debug");
 
     // 读取当前算子的配置参数
     if (configNode[triggerName].IsDefined()) {
       auto triggerNode = configNode[triggerName];
-      common::loadNode<std::string>(triggerNode, subTopic, "subTopic");
-      common::loadNode<std::string>(triggerNode, subRoadConditionTopic,   
+      AILoadNode<std::string>(triggerNode, subTopic, "subTopic");
+      AILoadNode<std::string>(triggerNode, subRoadConditionTopic,
                                     "subRoadConditionTopic");
-      common::loadNode<int>(triggerNode, pubRate, "pubRate");
-      common::loadNode<bool>(triggerNode, containAny, "containAny");
-      common::loadNode<int>(triggerNode, frameSyncThresh, "frameSyncThresh");
+      AILoadNode<int>(triggerNode, pubRate, "pubRate");
+      AILoadNode<bool>(triggerNode, containAny, "containAny");
+      AILoadNode<int>(triggerNode, frameSyncThresh, "frameSyncThresh");
       frameSyncThresh *= AI_TIME_CONVERSION;
       int priority = 0;
-      common::loadNode<int>(triggerNode, priority, "priority");
+      AILoadNode<int>(triggerNode, priority, "priority");
       triggerPriority = static_cast<int8_t>(priority);
     } else {
       LOG_WARN("[AIObjectTypeTrigger] load config error, use default!");
     }
   }
-  
+
   // debug信息
   if (debug) {
     LOG_INFO("================ AIObjectTypeTrigger Config =============");
@@ -56,22 +56,6 @@ AIObjectTypeTrigger::AIObjectTypeTrigger(stoic::cm::NodeHandle& nh, bool fromCon
     LOG_INFO("=========================================================");
   }
 
-  // 检测话题订阅
-  synxai::cm::idl::SubscriberConf conf_;
-  conf_.set_pending_queue_size(1);
-  AdapterManager<AIDetectModelOutput>::SubscriberBuilder(nh)
-     .topic(subTopic)
-     .subConf(conf_)
-     .subscribe(std::bind(&AIObjectTypeTrigger::VisionCallback, this,
-                std::placeholders::_1, std::placeholders::_2));
-
-  // 路况消息订阅
-  AdapterManager<AIRoadConditionOutput>::SubscriberBuilder(nh)
-     .topic(subTopic)
-     .subConf(conf_)
-     .subscribe(std::bind(&AIObjectTypeTrigger::RoadConditionCallback, this,
-                std::placeholders::_1, std::placeholders::_2));
-
   // 条件判断初始化
   conditionChecker = std::make_unique<TriggerConditionChecker>();
 }
@@ -79,33 +63,18 @@ AIObjectTypeTrigger::AIObjectTypeTrigger(stoic::cm::NodeHandle& nh, bool fromCon
 AIObjectTypeTrigger::~AIObjectTypeTrigger() {}
 
 bool AIObjectTypeTrigger::Proc() {
-  common::Rate rate(pubRate);
-  while (stoic::cm::ok()) {
-    {
-      std::unique_lock<std::mutex> lck(statusMtx);
+  bool ok = CheckCondition();
+  CHECK_AND_RETURN(ok, AIObjectTypeTrigger, "CheckCondition failed!", false);
 
-      // 判断算子状态
-      CheckCondition();
+  TriggerContext context;
+  context.timeStamp = common::Timer::now();
+  context.triggerId = trigger_id_;
+  context.triggerName = GetTriggerName();
+  context.businessType = business_type_;
+  context.triggerStatus = TriggerContext::TriggerState::Triggered;
+  NotifyTriggerContext(context);
 
-      // 如果满足条件，则触发算子，发送消息
-      if (triggerStatus) {
-        TriggerContext context;
-        context.timeStamp = common::Timer::now();
-        context.triggerId = trigger_obj_ ? trigger_obj_->triggerId : "10";
-        context.triggerName = GetTriggerName();
-        context.triggerStatus = TriggerContext::TriggerState::Triggered;
-
-        NotifyTriggerContext(context); // 调用通知接口
-
-        if (debug) {
-          LOG_INFO("[AIObjectTypeTrigger] trigger status: TRUE");
-        }
-      }
-    }
-    rate.sleep();
-  }
-
-  return true;
+  return ok;
 }
 
 bool AIObjectTypeTrigger::CheckCondition() {
@@ -115,108 +84,150 @@ bool AIObjectTypeTrigger::CheckCondition() {
   // 如果没有要判断的条件，则直接范围（一般是消息还没同步）
   if (inputIds.empty()) {
     LOG_WARN("[AIObjectTypeTrigger] inputIds is empty!");
-    triggerStatus = false;
-    return triggerStatus;
+    return false;
   }
 
-  // 条件判断
-  {
-    // 循环check，如果满足条件，提前退出
-    int curIdx = 0;
-    for (auto id : inputIds) {
-      curIdx |= (1 << id);
-    }
-    if (debug) {
-      LOG_INFO("[AIObjectTypeTrigger] current typeIdxs = %d, targetTypeIdx & curIdx=%d", 
-          curIdx, targetTypeIdx & curIdx);
-    }
-    
-    int objTag = 0;
-    if (containAny) {
-      // (targetTypeIdx & curIdx > 0) 存在指定类别
-      objTag = (targetTypeIdx & curIdx) > 0 ? targetTypeIdx : 0;
-    } else {
-      // (targetTypeIdx & curIdx == targetTypeIdx) 指定类别都存在
-      curIdx += 1;  // 最后一位置1
-      objTag = (targetTypeIdx & curIdx) == targetTypeIdx ? targetTypeIdx : 0;
-    }
-    
-    vars["objTag"] = static_cast<double>(objTag);
-    if (debug) {
-      LOG_INFO("[AIObjectTypeTrigger] objTag = %lf", vars["objTag"]);
-    }
-    triggerStatus = conditionChecker->check(vars);  
+  // 循环check，如果满足条件，提前退出
+  int64_t curIdx = 0;
+  for (auto id : inputIds) {
+    curIdx |= (1 << id);
   }
+  if (debug) {
+    LOG_INFO("[AIObjectTypeTrigger] current typeIdxs = %ld, targetTypeIdx & curIdx=%ld",
+        curIdx, targetTypeIdx & curIdx);
+  }
+
+  int64_t objTag = 0;
+  if (containAny) {
+    // (targetTypeIdx & curIdx > 0) 存在指定类别
+    objTag = (targetTypeIdx & curIdx) > 0 ? targetTypeIdx : 0;
+  } else {
+    // (targetTypeIdx & curIdx == targetTypeIdx) 指定类别都存在
+    curIdx += 1;  // 最后一位置1
+    objTag = (targetTypeIdx & curIdx) == targetTypeIdx ? targetTypeIdx : 0;
+  }
+
+  vars["objTag"] = static_cast<double>(objTag);
+  bool triggerStatus = conditionChecker->check(vars);
 
   // 清空历史结果
   vars.clear();
   inputIds.clear();
 
-  return triggerStatus;
-}
+  if (debug) {
+    LOG_INFO("[AIObjectTypeTrigger] objTag = %lf", vars["objTag"]);
+    LOG_INFO("[AIObjectTypeTrigger] CheckCondition = %d", triggerStatus);
+  }
 
-void AIObjectTypeTrigger::NotifyTriggerContext(TriggerContext context) {
-    TriggerFactory::Instance().InvokeTriggerCallback(context);
-    LOG_INFO("Trigger notified: %s (ID: %s, Time: %ld)",
-             context.triggerName.c_str(), context.triggerId.c_str(), context.timeStamp);
+  return triggerStatus;
 }
 
 std::string AIObjectTypeTrigger::GetTriggerName() const {
   return triggerName;
 }
 
-int8_t AIObjectTypeTrigger::GetPriority() const {
-  return  triggerPriority;
-}
+void AIObjectTypeTrigger::OnMessageReceived(
+    const std::string& topic, const TRawMessagePtr& msg) {
+  if (topic == subTopic) {
+    if (debug) {
+      LOG_INFO("[AIObjectTypeTrigger] get perception msg (%s)", topic.c_str());
+    }
 
-bool AIObjectTypeTrigger::GetStatus() {
-  std::unique_lock<std::mutex> lock(statusMtx);
-  return triggerStatus;
-}
+    kj::ArrayPtr<const capnp::word> vi_kjarr(reinterpret_cast<const capnp::word*>
+      (msg->Bytes()), msg->ByteSize());
+    ::capnp::FlatArrayMessageReader reader(vi_kjarr);
 
-void AIObjectTypeTrigger::UpdateStatus(bool status) {
-  std::unique_lock<std::mutex> lock(statusMtx);
-  triggerStatus = status;
-}
+    auto objectFrameReader = reader.getRoot<senseAD::msg::perception::ObjectFrame>();
+    uint64_t stamp = objectFrameReader.getHeader().getTime().getNanoSec();
+    uint64_t sensorStamp = objectFrameReader.getFrameTimestampNs();
+    auto objectList = objectFrameReader.getPerceptionObjectList();
+    auto validCnt = std::min(static_cast<int>(objectList.size()), AI_MAX_DETECT_OBJ);
 
-void AIObjectTypeTrigger::VisionCallback(const AIDetectModelOutput& msg, const std::string& topic) {
-  if (debug) {
-    LOG_INFO("[AIObjectTypeTrigger] get perception msg (%s), stamp=%ld, valid_cnt=%d",
-              topic.c_str(), msg.stamp, msg.validCnt);
+    // 提取类别 + 所有到的检测框
+    AIDetection boxRes[AI_MAX_DETECT_OBJ];
+    int index = 0;
+    for (auto obj : objectList) {
+      if (index >= AI_MAX_DETECT_OBJ) {
+        break;
+      }
+
+      auto boxInfoReader = obj.getCameraBboxInfo().getRawDetectionBox();
+      boxRes[index].bbox[0] = boxInfoReader.getTopLeftX();
+      boxRes[index].bbox[1] = boxInfoReader.getTopLeftY();
+      boxRes[index].bbox[2] = boxInfoReader.getBottomRightX();
+      boxRes[index].bbox[3] = boxInfoReader.getBottomRightY();
+      boxRes[index].conf = boxInfoReader.getConfidence();
+      boxRes[index].classId = static_cast<uint8_t>(obj.getSubtype());
+
+      index += 1;
+    }
+
+    if (debug) {
+      LOG_INFO("[AIObjectTypeTrigger] msg info: stamp=%u,  validCnt = %d", stamp, validCnt);
+      for (int i = 0; i < validCnt; i++) {
+        LOG_INFO("[AIObjectTypeTrigger] boxRes[%d], id[%d]: %f, %f, %f, %f, %f, %d",
+            i, i, boxRes[i].bbox[0], boxRes[i].bbox[1], boxRes[i].bbox[2], boxRes[i].bbox[3],
+            boxRes[i].conf, boxRes[i].classId);
+
+      }
+    }
+
+    {
+      std::unique_lock<std::mutex> lock(msgMtx);
+      visionMsg->stamp = stamp;
+      visionMsg->sensorStamp = sensorStamp;
+      visionMsg->validCnt = static_cast<uint8_t>(validCnt);
+      memcpy(visionMsg->boxRes, boxRes, sizeof(AIDetection) * AI_MAX_DETECT_OBJ);
+    }
   }
 
-  // 帧同步
-  {
-    std::unique_lock<std::mutex> lck(msgMtx);
-    visionMsg->stamp = msg.stamp;
-    visionMsg->sensorStamp = msg.sensorStamp;
-    visionMsg->validCnt = msg.validCnt;
-    memcpy(visionMsg->result, msg.result, sizeof(AIDetection) * AI_MAX_DETECT_OBJ);
-  }
-}
+  // 路况
+  if (topic == subRoadConditionTopic) {
+    if (debug) {
+      LOG_INFO("[AIObjectTypeTrigger] get perception msg (%s)", topic.c_str());
+    }
 
-void AIObjectTypeTrigger::RoadConditionCallback(
-    const AIRoadConditionOutput &msg, const std::string &topic) {
-  if (debug) {
-    LOG_INFO("[AIObjectTypeTrigger] get road condition msg (%s), stamp=%ld",
-              topic.c_str(), msg.stamp);
-  }
+    kj::ArrayPtr<const capnp::word> vi_kjarr(reinterpret_cast<const capnp::word*>
+      (msg->Bytes()), msg->ByteSize());
+    ::capnp::FlatArrayMessageReader reader(vi_kjarr);
 
-  // 帧同步 
-  {
-    std::unique_lock<std::mutex> lck(msgMtx);
-    roadMsg->stamp = msg.stamp;
-    roadMsg->sensorStamp = msg.sensorStamp;
-    roadMsg->roadType = msg.roadType;
-    roadMsg->weatherType = msg.weatherType;
-    roadMsg->timeType = msg.timeType;
+    auto envODDFrameReader = reader.getRoot<senseAD::msg::perception::EnvODDFrame>();
+    uint64_t stamp = envODDFrameReader.getHeader().getTime().getNanoSec();
+    uint64_t sensorStamp = envODDFrameReader.getFrameTimestampNs();
+
+    EMTimeType timeType = EMTimeType::TIME_UNKNOW;
+    EMWeatherType weatherType = EMWeatherType::WEATHER_UNKNOW;
+    EMRoadType roadType = EMRoadType::ROAD_UNKNOW;
+
+    if (envODDFrameReader.hasSceneInfo()) {
+      auto seceneInfoReader = envODDFrameReader.getSceneInfo();
+      timeType = static_cast<EMTimeType>(seceneInfoReader.getSceneBrightnessInfo());
+      weatherType = static_cast<EMWeatherType>(seceneInfoReader.getSceneWeatherInfo());
+      roadType = static_cast<EMRoadType>(seceneInfoReader.getSceneEnvironmentInfo());
+    }
+
+
+    if (debug) {
+      LOG_INFO("[AIObjectTypeTrigger] msg info: stamp=%u, time=%d, weather=%d, road=%d",
+                stamp, static_cast<int>(timeType), static_cast<int>(weatherType),
+                static_cast<int>(roadType));
+    }
+
+    {
+      std::unique_lock<std::mutex> lock(msgMtx);
+      roadMsg->stamp = stamp;
+      roadMsg->sensorStamp = sensorStamp;
+      roadMsg->roadType = roadType;
+      roadMsg->timeType = timeType;
+      roadMsg->weatherType = weatherType;
+    }
   }
 }
 
 void AIObjectTypeTrigger::EnableFlag() {
   // 初次处理，初始化条件判断，根据输入条件决定算子内部使能功能
   if (!conditionChecker->parse(trigger_obj_->triggerCondition)) {
-    LOG_ERROR("AIObjectTypeTrigger: %s", 
+    LOG_ERROR("AIObjectTypeTrigger: %s",
               conditionChecker->last_error().c_str());
     return;
   }
@@ -225,9 +236,9 @@ void AIObjectTypeTrigger::EnableFlag() {
   std::string strTypes = "";  // 获取当前算子需要监测的类别
   for (auto & elem : elmes) {
     if (debug) {
-      LOG_INFO("Variable: %s | Operator: %s | Threshold: %s | Logic: %s", 
-                elem.variable.c_str(), elem.comparison_op.c_str(), 
-                elem.threshold_str().c_str(), 
+      LOG_INFO("Variable: %s | Operator: %s | Threshold: %s | Logic: %s",
+                elem.variable.c_str(), elem.comparison_op.c_str(),
+                elem.threshold_str().c_str(),
                 (elem.logical_op.empty() ? "Empty" : elem.logical_op).c_str());
     }
 
@@ -241,8 +252,8 @@ void AIObjectTypeTrigger::EnableFlag() {
     exit(-1);
   }
 
-  targetTypeIdx = static_cast<int>(std::stod(strTypes));
-  LOG_INFO("[AIObjectTypeTrigger] target types: %d", targetTypeIdx);
+  targetTypeIdx = static_cast<int64_t>(std::stod(strTypes));
+  LOG_INFO("[AIObjectTypeTrigger] target types: %ld", targetTypeIdx);
 
   containAny = (targetTypeIdx & 1) == 0 ? true : false;
   LOG_INFO("[AIObjectTypeTrigger] containAny: %d", containAny);
@@ -254,16 +265,11 @@ void AIObjectTypeTrigger::JudgeObjectType() {
   // 算子条件解析
   EnableFlag();
 
-  // 判断是否同步完成
-  if (visionMsg->stamp == -1 || roadMsg->stamp == -1
-    || abs(visionMsg->stamp - roadMsg->stamp) > frameSyncThresh) {
-    LOG_WARN("[AIObjectTypeTrigger] wait sync ...");
-    return;
-  } else {
+  if (visionMsg->stamp != 0) {
     std::unique_lock<std::mutex> lck(msgMtx);
     // 统计所有检测类型的名字
     for (int i = 0; i < visionMsg->validCnt; i++) {
-      auto curId = visionMsg->result[i].classId;
+      auto curId = visionMsg->boxRes[i].classId;
       if (classTypeMap.find(curId) != classTypeMap.end()) {
         int mapId = classTypeMap[curId];
         if (std::find(inputIds.begin(), inputIds.end(), mapId) == inputIds.end()) {
@@ -272,29 +278,31 @@ void AIObjectTypeTrigger::JudgeObjectType() {
       }
     }
 
+    visionMsg->stamp = 0;
+  }
+
+  if (roadMsg->stamp != 0) {
+    std::unique_lock<std::mutex> lck(msgMtx);
     // 统计所有路况情况
-    if (roadMsg->weatherType != EMWeatherType::WEATHER_UNSET) {
+    if (roadMsg->weatherType != EMWeatherType::WEATHER_UNKNOW) {
       inputIds.push_back(weatherTypeMap[roadMsg->weatherType]);
     }
 
-    if (roadMsg->roadType != EMRoadType::ROAD_UNSET) {
+    if (roadMsg->roadType != EMRoadType::ROAD_UNKNOW) {
       inputIds.push_back(roadTypeMap[roadMsg->roadType]);
     }
 
-    if (roadMsg->timeType != EMTimeType::TIME_UNSET) {
+    if (roadMsg->timeType != EMTimeType::TIME_UNKNOW) {
       inputIds.push_back(timeTypeMap[roadMsg->timeType]);
     }
-    
-    if (debug) {
-      LOG_INFO("[AIObjectTypeTrigger] inputIds: %zu", inputIds.size());
-      for (size_t i = 0; i < inputIds.size(); i++) {
-        LOG_INFO("[AIObjectTypeTrigger] get type %d", inputIds[i]);
-      }
-    }
+    roadMsg->stamp = 0;
+  }
 
-    // 清空(通过时间戳判断是否同步），等待下一帧同步
-    visionMsg->stamp = -1;
-    roadMsg->stamp = -1;
+  if (debug) {
+    LOG_INFO("[AIObjectTypeTrigger] inputIds: %zu", inputIds.size());
+    for (size_t i = 0; i < inputIds.size(); i++) {
+      LOG_INFO("[AIObjectTypeTrigger] get type %d", inputIds[i]);
+    }
   }
 }
 

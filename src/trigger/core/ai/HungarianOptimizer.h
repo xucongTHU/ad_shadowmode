@@ -1,3 +1,12 @@
+/*******************************************************************
+* Copyright (c) 2025 T3CAIC. All rights reserved.
+*
+* @file HungarianOptimizer.h
+* @brief refer to https://github.com/RocShi/hungarian_optimizer
+*
+* @author maqiang
+* @date 2025-06
+*******************************************************************/
 #pragma once
 
 #include <Eigen/Dense>

@@ -1,5 +1,5 @@
 //
-// Created by xucong on 25-7-11.
+// Created by ymm on 25-7-11.
 // © 2025 Synaptix AI. All rights reserved.
 // Tsung Xu<xucong@synaptix.ai>
 //
@@ -37,7 +37,7 @@ double calculateCPUPercentage(const CPUData& oldData, const CPUData& newData) {
     long idleDiff = newData.idle - oldData.idle;
 
     std::cout << "Total Diff: " <<  totalDiff  << "\n";   
-    std::cout << "Idle Diff:  " <<  idleDiff << "\n";    
+    std::cout  << "Idle Diff:   " <<  idleDiff << "\n";    
 
     return (totalDiff - idleDiff) / static_cast<double>(totalDiff);
 }

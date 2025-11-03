@@ -1,6 +1,7 @@
 //
 // Created by xucong on 25-5-30.
 // © 2025 Synaptix AI. All rights reserved.
+// Tsung Xu<xucong@synaptix.ai>
 //
 
 #include "CyberRecorder.h"

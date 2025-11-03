@@ -12,13 +12,6 @@ using namespace shadow;
 using namespace shadow::logger;
 
 int main(int argc, char* argv[]) {
-    // stoic::cm::init(argc, argv, "shadow_mode");
-    // stoic::cm::NodeHandle nh("shadow_mode");
-
-    // ShadowModeContext ctx(nh);
-    // ctx.Start();
-
-    // stoic::cm::spin();
 
 #if 1
     auto rt = senseAD::rscl::GetCurRuntime();

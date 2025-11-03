@@ -1,9 +1,3 @@
-//
-// Created by xucong on 25-5-7.
-// © 2025 Synaptix AI. All rights reserved.
-// Tsung Xu<xucong@synaptix.ai>
-//
-
 #include "Logger.h"
 
 #include <stdarg.h>

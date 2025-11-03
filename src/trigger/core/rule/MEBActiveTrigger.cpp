@@ -1,6 +1,7 @@
 //
 // Created by xucong on 24-11-27.
-// Copyright (c) 2024 Synaptix AI. All rights reserved.
+// © 2025 Synaptix AI. All rights reserved.
+// Tsung Xu<xucong@synaptix.ai>
 //
 
 #include "MEBActiveTrigger.h"
@@ -25,7 +26,7 @@ bool MEBActiveTrigger::Proc() {
 }
 
 void MEBActiveTrigger::OnMessageReceived(const std::string& topic, const TRawMessagePtr& msg) {
-    if (topic == "/ad_pub_test/meb") {
+    if (topic == "/caic_pub_test/meb") {
         UpdateVehicleInfo(msg);
     }
 
@@ -71,15 +72,6 @@ bool MEBActiveTrigger::CheckCondition() {
     
     return ok;
 }
-
-void MEBActiveTrigger::NotifyTriggerContext(const TriggerContext& context) {
-    if (factoryPtr_) {
-        factoryPtr_->OnTriggerContext(context);
-    }
-    // LOG_INFO("Trigger notified: %s (ID: %s, Time: %ld)",
-    //          context.triggerName.c_str(), context.triggerId.c_str(), context.timeStamp);
-}
-
 
 
 } // namespace trigger

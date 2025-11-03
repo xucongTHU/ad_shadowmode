@@ -1,6 +1,7 @@
 //
 // Created by xucong on 24-11-27.
-// Copyright (c) 2024 Synaptix AI. All rights reserved.
+// © 2025 Synaptix AI. All rights reserved.
+// Tsung Xu<xucong@synaptix.ai>
 //
 
 #ifndef AEBACTIVE_TRIGGER_H
@@ -16,20 +17,17 @@
 #include "ad_msg_idl/ad_tap/as_control.capnp.h"
 #include "ad_msg_idl/ad_planning/nop_hmi.capnp.h"
 #include "ad_msg_idl/ad_tap/as_command.capnp.h"
-static bool aeb_active = false;
+
 namespace shadow {
 namespace trigger {
 
-
 class AEBActiveTrigger : public TriggerBase {
 public:
-    AEBActiveTrigger(const std::shared_ptr<senseAD::rscl::comm::Node>& node)
-        : node_ptr_(node), trigger_name_("AEBActiveTrigger") {}
+    AEBActiveTrigger(): trigger_name_("AEBActiveTrigger") {}
     ~AEBActiveTrigger() override = default;
 
     bool Proc() override;
     bool CheckCondition() override;
-    void NotifyTriggerContext(const TriggerContext& context) override;
     std::string GetTriggerName() const override { return trigger_name_; }
     void OnMessageReceived(const std::string& topic, const TRawMessagePtr& msg) override;
 
@@ -42,8 +40,9 @@ private:
     std::mutex mutex_;
     std::string trigger_name_;
     TriggerConditionChecker trigger_checker_;
-    bool debug = true;
+    bool debug = false;
     bool triggerStatus = false;
+    std::atomic<bool> aeb_flag_{false};
     // bool aeb_active = false;
 
 };

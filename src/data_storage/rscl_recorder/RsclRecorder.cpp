@@ -1,7 +1,7 @@
-/*
- * Copyright (c) 2025 Synaptix AI Group Limited. All rights reserved.
- * Tsung Xu<xucong@synaptix.ai>
- */
+//
+// © 2025 Synaptix AI. All rights reserved.
+// Tsung Xu<xucong@synaptix.ai>
+//
 
 #include "RsclRecorder.h"
 #include "ad_rscl/comm/hetero_channel/channel_factory.h"

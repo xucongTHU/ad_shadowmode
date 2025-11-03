@@ -44,11 +44,13 @@ public:
     bool InitTrigger(const strategy::StrategyConfig& strategyConfig);
     virtual bool Proc() = 0;
     virtual bool CheckCondition() = 0;
-    virtual void NotifyTriggerContext(const TriggerContext& context) = 0;
+    // virtual void NotifyTriggerContext(const TriggerContext& context) = 0;
     virtual std::string GetTriggerName() const = 0;
 
     void OnMessageReceived(const std::string& topic, const TRawMessagePtr& msg) override = 0;
     void SetFactory(const std::shared_ptr<TriggerFactory>& factory) { factoryPtr_ = factory; }
+
+    void NotifyTriggerContext(const TriggerContext& context);
 
 protected:
     std::unique_ptr<strategy::Trigger> trigger_obj_ = nullptr;

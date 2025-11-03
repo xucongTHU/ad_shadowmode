@@ -48,21 +48,21 @@ public:
         if (callback_) callback_(ctx);
     }
 
-    /**
-     * @brief Set the global NodeHandle instance.
-     * @param node The node handle instance to set.
-     */
-    void SetNodeHandle(const std::shared_ptr<senseAD::rscl::comm::Node>& node) {
-        node_ptr_ = node;
-    }
+    // /**
+    //  * @brief Set the global NodeHandle instance.
+    //  * @param node The node handle instance to set.
+    //  */
+    // void SetNodeHandle(const std::shared_ptr<senseAD::rscl::comm::Node>& node) {
+    //     node_ptr_ = node;
+    // }
 
-    /**
-     * @brief Get the global NodeHandle instance.
-     * @return Pointer to the NodeHandle instance.
-     */
-    std::shared_ptr<senseAD::rscl::comm::Node> GetNodeHandle() {
-        return node_ptr_;
-    }
+    // /**
+    //  * @brief Get the global NodeHandle instance.
+    //  * @return Pointer to the NodeHandle instance.
+    //  */
+    // std::shared_ptr<senseAD::rscl::comm::Node> GetNodeHandle() {
+    //     return node_ptr_;
+    // }
 
     void SetTriggerConfig(const strategy::StrategyConfig& config) {
         std::unique_lock<std::shared_mutex> lock(config_mutex_);
@@ -80,39 +80,34 @@ public:
     }
 
     std::shared_ptr<TriggerBase> GetTrigger(const std::string& trigger_name) {
-        CreatorFunc creator;
-        {
-            std::shared_lock<std::shared_mutex> lock(trigger_mutex_);
-            auto it = triggers_.find(trigger_name);
-            if (it == triggers_.end()) return nullptr;
-            creator = it->second;
-        }
-
-        return creator ? creator() : nullptr;
+        std::shared_lock<std::shared_mutex> lock(trigger_mutex_);
+        auto it = trigger_instances_.find(trigger_name);
+        return (it == trigger_instances_.end()) ? nullptr : it->second;
     }
 
     /**
      * @brief Initialize the trigger scheduler.
-     * @param node The node handle instance.
      * @param scheduler The scheduler instance to use.
      */
-    bool InitTriggerScheduler(const std::shared_ptr<senseAD::rscl::comm::Node>& node,
-                              std::shared_ptr<Scheduler> scheduler) {
+    bool InitTriggerScheduler(std::shared_ptr<Scheduler> scheduler) {
         scheduler_ = std::move(scheduler);
         if (!scheduler_) {
             LOG_ERROR("Scheduler is not initialized.");
             return false;
         }
 
-        std::vector<std::string> enabled_triggers;
+        // std::vector<std::string> enabled_triggers;
+        std::vector<std::pair<std::string, int>> enabled_triggers;
         int trigger_priority = std::numeric_limits<int>::max();
         size_t threads = 0;
         {
             std::shared_lock lock(config_mutex_);
             for (const auto& s : strategy_config_.strategies) {
                 if (s.trigger.enabled) {
-                    enabled_triggers.push_back(s.trigger.triggerName);
-                    trigger_priority = s.trigger.priority;
+                    enabled_triggers.emplace_back(
+                        s.trigger.triggerName, 
+                        s.trigger.priority
+                    );
                     ++threads;
                 }
             }
@@ -126,24 +121,27 @@ public:
         }
 
         bool success = true;
-        for (const auto& trigger_name : enabled_triggers)
+        for (const auto& [name, prio] : enabled_triggers)
         {
-            auto trigger = CreateTrigger(trigger_name, strategy_config_);
+            auto trigger = CreateTrigger(name, strategy_config_);
             if (!trigger) {
-                LOG_ERROR("Trigger creation failed for %s", trigger_name.c_str());
+                LOG_ERROR("Trigger creation failed for %s", name.c_str());
                 success = false;
                 continue;
             }
+
             trigger->SetFactory(shared_from_this()); // 设置工厂指针
             success = trigger->InitTrigger(strategy_config_);
             CHECK_AND_RETURN(success, TriggerFactory, "Trigger init failed", false);
 
             TriggerTask task;
-            task.trigger_name = trigger_name;
-            task.priority = trigger_priority;
+            task.trigger_name = name;
+            task.priority = prio;
             task.trigger = std::move(trigger);
             task.strategyConfig = strategy_config_;
             scheduler_->AddTask(task);
+
+            trigger_instances_[name] = std::dynamic_pointer_cast<TriggerBase>(task.trigger);
         }
 
         return success;
@@ -198,7 +196,7 @@ private:
 private:
     std::shared_mutex trigger_mutex_;
     std::shared_mutex config_mutex_;
-    std::shared_ptr<senseAD::rscl::comm::Node> node_ptr_;
+    // std::shared_ptr<senseAD::rscl::comm::Node> node_ptr_;
  //    stoic::cm::NodeHandle* nodeHandle_ = nullptr;
 
     std::unordered_map<std::string, CreatorFunc> triggers_;
@@ -206,6 +204,8 @@ private:
     std::shared_ptr<Scheduler> scheduler_;
     mutable std::shared_mutex callback_mutex_;
     TriggerCallback callback_;
+
+    std::unordered_map<std::string, std::shared_ptr<TriggerBase> > trigger_instances_;
 };
 
 /**
@@ -226,19 +226,13 @@ private:
 
 
 #define REGISTER_TRIGGER(TriggerName)                                            \
-    inline bool Register##TriggerName(std::shared_ptr<TriggerFactory> factory,   \
-                                      const std::shared_ptr<senseAD::rscl::comm::Node>& node) { \
-        if (!node) {                                                             \
-            LOG_WARN("node is null when registering trigger: %s", #TriggerName); \
-            return false;                                                        \
-        }                                                                        \
-        factory->RegisterTrigger(#TriggerName, [node] {                          \
-            return std::make_shared<TriggerName>(node);                          \
+    inline bool Register##TriggerName(std::shared_ptr<TriggerFactory> factory) { \
+        factory->RegisterTrigger(#TriggerName, [] {                              \
+            return std::make_shared<TriggerName>();                              \
         });                                                                      \
-        LOG_INFO("Trigger registered successfully: %s", #TriggerName);           \
         return true;                                                             \
-    }       
-    
+    }
+
 } // namespace trigger
 } // namespace shadow
 

@@ -5,6 +5,7 @@
 //
 
 #include "TriggerBase.h"
+#include "TriggerFactory.hpp"
 
 #include <memory>
 
@@ -27,6 +28,16 @@ bool TriggerBase::InitTrigger(const strategy::StrategyConfig &strategyConfig) {
         return false;
     }
     return true;
+}
+
+void TriggerBase::NotifyTriggerContext(const TriggerContext& context) {
+    if (factoryPtr_) {
+        factoryPtr_->OnTriggerContext(context);
+        // LOG_INFO("Trigger notified: %s (ID: %s, Time: %ld)",
+        //           context.triggerName.c_str(), context.triggerId.c_str(), context.timeStamp);
+    } else {
+        LOG_ERROR("Factory pointer is null when notifying trigger context");
+    }
 }
 
 } // namespace trigger

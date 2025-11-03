@@ -1,3 +1,12 @@
+/*******************************************************************
+* Copyright (c) 2025 T3CAIC. All rights reserved.
+*
+* @file ShadowMsgBase.h
+* @brief 自定义shadow相关消息
+*
+* @author maqiang
+* @date 2025-05-09
+*******************************************************************/
 #pragma once
 
 #include <Eigen/Eigen>
@@ -5,8 +14,7 @@
 #include <stdint.h>
 #include <memory>
 
-#include "cm/cm.h"
-#include "ad_interface.h"
+#include "yaml-cpp/yaml.h"
 
 namespace shadow::trigger {
 
@@ -41,23 +49,32 @@ struct ShadowDetection {
 /**
  * @brief 2d检测结果
  */
-struct ShadowDetectModelOutput : public ad_std::MessageBase {
-  int64_t stamp = -1;
-  int64_t sensorStamp = -1;
+struct ShadowDetectModelOutput {
+  uint64_t stamp = 0;
+  uint64_t sensorStamp = 0;
   uint8_t validCnt = 0;                   // 有效的检测个数
-  ShadowDetection result[SHADOW_MAX_DETECT_OBJ];
+  ShadowDetection detRes[SHADOW_MAX_DETECT_OBJ];
 };
 
 /**
  * @brief 算法决策输出结果
  */
-struct ShadowModelCtlOutput: public ad_std::MessageBase  {
-  int64_t stamp = -1;
+struct ShadowModelCtlOutput  {
+  uint64_t stamp = 0;
   float acc = 0.0f;                    // acc控制值
   float brake = 0.0f;                  // 制动板控制值
   float throttle = 0.0f;               // 油门控制值
   float wheelAngle = 0.0f;             // 方向盘转角
   float wheelAngularVelocity = 0.0f;   // 方向盘角速度
 };
+
+template <typename _T>
+void ShadowLoadNode(const YAML::Node& node, _T& value, std::string name) {
+  if (node[name]) {
+    value = node[name].as<_T>();
+  } else {
+    std::cout << "[Error] Can't find node " << name << std::endl;
+  }
+}
 
 }  // namespace shadow::trigger

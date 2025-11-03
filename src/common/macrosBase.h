@@ -1,9 +1,3 @@
-//
-// Created by xucong on 25-3-13.
-// © 2025 Synaptix AI. All rights reserved.
-// Tsung Xu<xucong@synaptix.ai>
-//
-
 #pragma once
 
 #include <cstdlib>

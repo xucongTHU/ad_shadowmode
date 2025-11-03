@@ -1,6 +1,7 @@
 //
 // Created by xucong on 24-11-27.
-// Copyright (c) 2024 Synaptix AI. All rights reserved.
+// © 2025 Synaptix AI. All rights reserved.
+// Tsung Xu<xucong@synaptix.ai>
 //
 
 #include "CNOPQuitTrigger.h"
@@ -26,7 +27,7 @@ bool CNOPQuitTrigger::Proc() {
 }
 
 void CNOPQuitTrigger::OnMessageReceived(const std::string& topic, const TRawMessagePtr& msg) {
-    if (topic == "/ad_pub_test/nopquit") {
+    if (topic == "/caic_pub_test/nopquit") {
         UpdateVehicleInfo(msg);
     }
 
@@ -44,9 +45,8 @@ void CNOPQuitTrigger::UpdateVehicleInfo(const std::shared_ptr<ReceivedMsg<senseA
 
 void CNOPQuitTrigger::Updateplanning(const senseAD::msg::planning::MCUStateMachineInfo::Reader& report) {
     std::lock_guard<std::mutex> lock(mutex_);
-    cnopquit_ = ((report.getMcuStateMachene() == senseAD::msg::planning::MCUStateMachineInfo::StateMachine::NOP_ACITVE) && 
-    report.getMcuDrvOverride() == senseAD::msg::planning::MCUStateMachineInfo::Override::BOTH_OVERRIDE);
-    // LOG_ERROR("cnopquit callback: %d", cnopquit_);
+    cnop_flag_.store(((report.getMcuStateMachene() == senseAD::msg::planning::MCUStateMachineInfo::StateMachine::NOP_ACITVE) && 
+    report.getMcuDrvOverride() == senseAD::msg::planning::MCUStateMachineInfo::Override::BOTH_OVERRIDE), std::memory_order_relaxed);
 }
 
 bool CNOPQuitTrigger::CheckCondition() {
@@ -65,21 +65,13 @@ bool CNOPQuitTrigger::CheckCondition() {
         }
     }
 
-    std::unordered_map<std::string, TriggerConditionChecker::Value> vars;  
-    vars["cnopquit"] = cnopquit_;
-    // LOG_INFO("cnopquit check: %d", cnopquit_);
+    std::unordered_map<std::string, TriggerConditionChecker::Value> vars;
+    vars["cnopquit"] = cnop_flag_.load(std::memory_order_relaxed);
 
     bool ok = trigger_checker_.check(vars);
+    LOG_INFO("[CNOPQuitTrigger] CheckCondition = %d", ok);
     
     return ok;
-}
-
-void CNOPQuitTrigger::NotifyTriggerContext(const TriggerContext& context) {
-     if (factoryPtr_) {
-        factoryPtr_->OnTriggerContext(context);
-    }
-    // LOG_INFO("Trigger notified: %s (ID: %s, Time: %ld)",
-    //          context.triggerName.c_str(), context.triggerId.c_str(), context.timeStamp);
 }
 
 

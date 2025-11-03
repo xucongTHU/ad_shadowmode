@@ -7,15 +7,14 @@
 
 namespace shadow::trigger {
 
-AILidarVisionCompTrigger::AILidarVisionCompTrigger(stoic::cm::NodeHandle& nh, 
-                                                   bool fromConfig) {
+AILidarVisionCompTrigger::AILidarVisionCompTrigger(bool fromConfig) {
   if (fromConfig) {
     // 默认配置文件路径
     std::string configPath = std::string(common::getInstallRootPath())
                             + "/config/ai_shadow_trigger_conf.yaml";
-    LOG_INFO("[AILidarVisionCompTrigger] Init load configPath=%s", 
+    LOG_INFO("[AILidarVisionCompTrigger] Init load configPath=%s",
             configPath.c_str());
-    
+
     // 加载配置文件
     YAML::Node configNode;
     try {
@@ -27,18 +26,18 @@ AILidarVisionCompTrigger::AILidarVisionCompTrigger(stoic::cm::NodeHandle& nh,
     }
 
     // debug标志
-    common::loadNode<bool>(configNode, debug, "debug");
+    AILoadNode<bool>(configNode, debug, "debug");
 
     // 读取当前算子的配置参数
     if (configNode[triggerName].IsDefined()) {
       auto triggerNode = configNode[triggerName];
-      common::loadNode<std::string>(triggerNode, subVisionTopic, "subVisionTopic");
-      common::loadNode<std::string>(triggerNode, subLidarTopic, "subLidarTopic");
-      common::loadNode<int>(triggerNode, pubRate, "pubRate");
-      common::loadNode<int>(triggerNode, frameSyncThresh, "frameSyncThresh");
+      AILoadNode<std::string>(triggerNode, subVisionTopic, "subVisionTopic");
+      AILoadNode<std::string>(triggerNode, subLidarTopic, "subLidarTopic");
+      AILoadNode<int>(triggerNode, pubRate, "pubRate");
+      AILoadNode<int>(triggerNode, frameSyncThresh, "frameSyncThresh");
       frameSyncThresh *= AI_TIME_CONVERSION;  // 统一为us
       int priority = 0;
-      common::loadNode<int>(triggerNode, priority, "priority");
+      AILoadNode<int>(triggerNode, priority, "priority");
       triggerPriority = static_cast<int8_t>(priority);
     } else {
       LOG_WARN("[AILidarVisionCompTrigger] load config error, use default!");
@@ -56,22 +55,6 @@ AILidarVisionCompTrigger::AILidarVisionCompTrigger(stoic::cm::NodeHandle& nh,
     LOG_INFO("==============================================================");
   }
 
-  // 定于视觉感知结果
-  synxai::cm::idl::SubscriberConf conf_;
-  conf_.set_pending_queue_size(1);
-  AdapterManager<AIVisionModelOutput>::SubscriberBuilder(nh)
-     .topic(subVisionTopic)
-     .subConf(conf_)
-     .subscribe(std::bind(&AILidarVisionCompTrigger::VisionCallback, this,
-                std::placeholders::_1, std::placeholders::_2));
-
-  // 订阅雷达感知结果
-  AdapterManager<AILidarModelOutput>::SubscriberBuilder(nh)
-     .topic(subLidarTopic)
-     .subConf(conf_)
-     .subscribe(std::bind(&AILidarVisionCompTrigger::LidarCallback, this,
-                std::placeholders::_1, std::placeholders::_2));
-
   // 条件判断初始化
   conditionChecker = std::make_unique<TriggerConditionChecker>();
 }
@@ -79,33 +62,18 @@ AILidarVisionCompTrigger::AILidarVisionCompTrigger(stoic::cm::NodeHandle& nh,
 AILidarVisionCompTrigger::~AILidarVisionCompTrigger() {}
 
 bool AILidarVisionCompTrigger::Proc() {
-  common::Rate rate(pubRate);
-  while (stoic::cm::ok()) {
-    {
-      std::unique_lock<std::mutex> lck(statusMtx);
+  bool ok = CheckCondition();
+  CHECK_AND_RETURN(ok, AILidarVisionCompTrigger, "CheckCondition failed!", false);
 
-      // 判断算子状态
-      CheckCondition();
+  TriggerContext context;
+  context.timeStamp = common::Timer::now();
+  context.triggerId = trigger_id_;
+  context.triggerName = GetTriggerName();
+  context.businessType = business_type_;
+  context.triggerStatus = TriggerContext::TriggerState::Triggered;
+  NotifyTriggerContext(context);
 
-      // 如果满足条件，则触发算子，发送消息
-      if (triggerStatus) {
-        TriggerContext context;
-        context.timeStamp = common::Timer::now();
-        context.triggerId = trigger_obj_ ? trigger_obj_->triggerId : "10";
-        context.triggerName = GetTriggerName();
-        context.triggerStatus = TriggerContext::TriggerState::Triggered;
-
-        NotifyTriggerContext(context); // 调用通知接口
-        
-        if (debug) {
-          LOG_INFO("[AILidarVisionCompTrigger] trigger status: TRUE");
-        }
-      }
-    }
-    rate.sleep();
-  }
-
-  return true;
+  return ok;
 }
 
 bool AILidarVisionCompTrigger::CheckCondition() {
@@ -114,72 +82,132 @@ bool AILidarVisionCompTrigger::CheckCondition() {
 
   // 如果没有要判断的条件，则直接范围（一般是消息还没同步）
   if (vars.empty()) {
-    return triggerStatus;
+    LOG_WARN("[AILidarVisionCompTrigger] inputIds is empty!");
+    return false;
   }
 
   // 条件判断
-  triggerStatus = conditionChecker->check(vars);
+  bool triggerStatus = conditionChecker->check(vars);
 
   // 清空算子判断条件
   vars.clear();
 
-  return triggerStatus;
-}
+  if (debug) {
+    LOG_INFO("[AILidarVisionCompTrigger] CheckCondition = %d", triggerStatus);
+  }
 
-void AILidarVisionCompTrigger::NotifyTriggerContext(TriggerContext context) {
-    TriggerFactory::Instance().InvokeTriggerCallback(context);
-    LOG_INFO("Trigger notified: %s (ID: %s, Time: %ld)",
-             context.triggerName.c_str(), context.triggerId.c_str(), context.timeStamp);
+  return triggerStatus;
 }
 
 std::string AILidarVisionCompTrigger::GetTriggerName() const {
   return triggerName;
 }
 
-int8_t AILidarVisionCompTrigger::GetPriority() const {
-  return  triggerPriority;
-}
+void AILidarVisionCompTrigger::OnMessageReceived(
+    const std::string& topic, const TRawMessagePtr& msg) {
+  // vision 消息处理
+  if (topic == subVisionTopic) {
+    if (debug) {
+      LOG_INFO("[AILidarVisionCompTrigger] get perception msg (%s)", topic.c_str());
+    }
 
-bool  AILidarVisionCompTrigger::GetStatus() {
-  std::unique_lock<std::mutex> lock(statusMtx);
-  return triggerStatus;
-}
+    kj::ArrayPtr<const capnp::word> vi_kjarr(reinterpret_cast<const capnp::word*>
+        (msg->Bytes()), msg->ByteSize());
+    ::capnp::FlatArrayMessageReader reader(vi_kjarr);
 
-void AILidarVisionCompTrigger::UpdateStatus(bool status) {
-  std::unique_lock<std::mutex> lock(statusMtx);
-  triggerStatus = status;
-}
+    auto objectFrameReader = reader.getRoot<senseAD::msg::perception::ObjectFrame>();
+    uint64_t stamp = objectFrameReader.getHeader().getTime().getNanoSec();
+    uint64_t sensorStamp = objectFrameReader.getFrameTimestampNs();
+    auto objectList = objectFrameReader.getPerceptionObjectList();
 
-void AILidarVisionCompTrigger::UpdateTriggerEnable(int enable) {
-  triggerEnable = enable;
-}
+    AIVisionTrackObject visionRes[AI_MAX_TRACK_OBJ];
+    int index = 0;
+    for (auto obj : objectList) {
+      if (index >= AI_MAX_TRACK_OBJ) {
+        break;
+      }
 
-void AILidarVisionCompTrigger::VisionCallback(const AIVisionModelOutput& msg, const std::string& topic) {
-  if (debug) {
-    LOG_INFO("[AILidarVisionCompTrigger] get perception msg (%s), stamp=%ld",
-             topic.c_str(), msg.stamp);
+      // 仅保留通用障碍物输出
+      // 1 行人
+      // 2 车辆
+      // 14 两轮车
+      auto label = obj.getLabel();
+      if (label != 1 && label != 2 && label != 14) {
+        continue;
+      }
+
+      auto centerReader = obj.getMotionInfo().getCenter();
+      visionRes[index].position[0] = static_cast<float>(centerReader.getX());
+      visionRes[index].position[1] = static_cast<float>(centerReader.getY());
+      visionRes[index].position[2] = static_cast<float>(centerReader.getZ());
+      index += 1;
+    }
+
+    if (debug) {
+      LOG_INFO("[AILidarVisionCompTrigger] vision msg info: stamp=%u, validCnt=%d", stamp, index);
+    }
+
+    // 更新内部消息
+    {
+      std::unique_lock<std::mutex> lock(msgMtx);
+      visionMsg->stamp = stamp;
+      visionMsg->sensorStamp = sensorStamp;
+      visionMsg->validCnt = static_cast<uint8_t>(index);
+      memcpy(visionMsg->visionRes, visionRes, sizeof(AIVisionTrackObject) * AI_MAX_TRACK_OBJ);
+    }
   }
-  
-  // 更新消息
-  std::unique_lock<std::mutex> lck(msgMtx);
-  visionMsg->stamp = msg.stamp;
-  visionMsg->sensorStamp = msg.sensorStamp;
-  visionMsg->validCnt = msg.validCnt;
-  memcpy(visionMsg->visionRes, msg.visionRes, sizeof(AIVisionTrackObject) * AI_MAX_TRACK_OBJ);
-}
 
-void AILidarVisionCompTrigger::LidarCallback(const AILidarModelOutput& msg, const std::string& topic) {
-  if (debug) {
-    LOG_INFO("[AILidarVisionCompTrigger] get lidar msg (%s), stamp=%ld",
-             topic.c_str(), msg.stamp);
+  // lidar 消息处理
+  if (topic == subLidarTopic) {
+    if (debug) {
+      LOG_INFO("[AILidarVisionCompTrigger] get perception msg (%s)", topic.c_str());
+    }
+
+    kj::ArrayPtr<const capnp::word> vi_kjarr(reinterpret_cast<const capnp::word*>
+        (msg->Bytes()), msg->ByteSize());
+    ::capnp::FlatArrayMessageReader reader(vi_kjarr);
+
+    auto objectFrameReader = reader.getRoot<senseAD::msg::perception::ObjectFrame>();
+    uint64_t stamp = objectFrameReader.getHeader().getTime().getNanoSec();
+    uint64_t sensorStamp = objectFrameReader.getFrameTimestampNs();
+    auto objectList = objectFrameReader.getPerceptionObjectList();
+
+    AIDetectionLidar lidarRes[AI_MAX_TRACK_OBJ];
+    int index = 0;
+    for (auto obj : objectList) {
+      if (index >= AI_MAX_TRACK_OBJ) {
+        break;
+      }
+
+      // 仅保留通用障碍物输出
+      // 1 车辆
+      // 2 行人
+      // 3 两轮车
+      auto label = obj.getLabel();
+      if (label != 1 && label != 2 && label != 3) {
+        continue;
+      }
+
+      auto centerReader = obj.getMotionInfo().getCenter();
+      lidarRes[index].position[0] = static_cast<float>(centerReader.getX());
+      lidarRes[index].position[1] = static_cast<float>(centerReader.getY());
+      lidarRes[index].position[2] = static_cast<float>(centerReader.getZ());
+      index += 1;
+    }
+
+    if (debug) {
+      LOG_INFO("[AILidarVisionCompTrigger] lidar msg info: stamp=%u, validCnt=%d", stamp, index);
+    }
+
+    // 更新内部消息
+    {
+      std::unique_lock<std::mutex> lock(msgMtx);
+      lidarMsg->stamp = stamp;
+      lidarMsg->sensorStamp = sensorStamp;
+      lidarMsg->validCnt = static_cast<uint8_t>(index);
+      memcpy(lidarMsg->lidarRes, lidarRes, sizeof(AIVisionTrackObject) * AI_MAX_TRACK_OBJ);
+    }
   }
-  
-  // 更新消息
-  std::unique_lock<std::mutex> lck(msgMtx);
-  lidarMsg->stamp = msg.stamp;
-  lidarMsg->sensorStamp = msg.sensorStamp;
-  lidarMsg->validCnt = msg.validCnt;
-  memcpy(lidarMsg->result, msg.result, sizeof(AIDetectionLidar) * AI_MAX_TRACK_OBJ);
 }
 
 void AILidarVisionCompTrigger::EnableFlag() {
@@ -193,13 +221,13 @@ void AILidarVisionCompTrigger::EnableFlag() {
   if (debug) {
     auto elmes = conditionChecker->get_elements();
     for (auto & elem : elmes) {
-      LOG_INFO("Variable: %s | Operator: %s | Threshold: %s | Logic: %s", 
-                elem.variable.c_str(), elem.comparison_op.c_str(), 
-                elem.threshold_str().c_str(), 
+      LOG_INFO("Variable: %s | Operator: %s | Threshold: %s | Logic: %s",
+                elem.variable.c_str(), elem.comparison_op.c_str(),
+                elem.threshold_str().c_str(),
                 (elem.logical_op.empty() ? "Empty" : elem.logical_op).c_str());
     }
   }
-  
+
   // LVObjectCntDiff, LVObjectCntDiff -> 更新当前算子内部使能状态
   for (auto iter = strEnableMap.begin(); iter != strEnableMap.end(); iter++) {
     if (trigger_obj_->triggerCondition.find(iter->first) != std::string::npos) {
@@ -208,7 +236,7 @@ void AILidarVisionCompTrigger::EnableFlag() {
   }
 
   LOG_INFO("[AISkipFrameTrigger] triggerEnable = %d", triggerEnable);
-  
+
   enableFlag = true;
 }
 
@@ -218,8 +246,10 @@ void AILidarVisionCompTrigger::JudgeLidarVisionComp() {
 
   std::unique_lock<std::mutex> lck(msgMtx);
   // 判断消息是否同步
-  if (visionMsg->stamp != -1 && lidarMsg->stamp != -1 
-    && abs(visionMsg->stamp - lidarMsg->stamp) < frameSyncThresh) {
+  auto timeDiff = (visionMsg->stamp > lidarMsg->stamp)
+                ? (visionMsg->stamp - lidarMsg->stamp)
+                : (lidarMsg->stamp - visionMsg->stamp);
+  if (visionMsg->stamp != 0 && lidarMsg->stamp != 0 && timeDiff < frameSyncThresh) {
     // 感知个数
     if (triggerEnable & TRIGGER_PERCEPTION_CNT) {
       double cntDiff = static_cast<double>(visionMsg->validCnt != lidarMsg->validCnt);
@@ -239,8 +269,8 @@ void AILidarVisionCompTrigger::JudgeLidarVisionComp() {
     }
 
     // 清空同步缓存，开始同步下一次
-    visionMsg->stamp = -1;
-    lidarMsg->stamp = -1;
+    visionMsg->stamp = 0;
+    lidarMsg->stamp = 0;
   } else {
     LOG_WARN("[AILidarVisionCompTrigger] wait sync ...");
   }
@@ -302,7 +332,7 @@ void AILidarVisionCompTrigger::MatchVisionLidar(
     auto vPos = visionMsg->visionRes[i].position;
     distanceGraph[i].resize(lidarMsg->validCnt);
     for (int j = 0; j < static_cast<int>(lidarMsg->validCnt); ++j) {
-      auto lPos = lidarMsg->result[j].position;
+      auto lPos = lidarMsg->lidarRes[j].position;
       // L2车体
       float dist = std::sqrt(
           std::pow(vPos[0] - lPos[0], 2) + std::pow(vPos[1] - lPos[1], 2));

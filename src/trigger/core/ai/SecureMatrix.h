@@ -1,3 +1,12 @@
+/*******************************************************************
+* Copyright (c) 2025 T3CAIC. All rights reserved.
+*
+* @file SecureMatrix.h
+* @brief refer to https://github.com/RocShi/hungarian_optimizer; for HungarianOptimizer use
+*
+* @author maqiang
+* @date 2025-06
+*******************************************************************/
 #pragma once
 
 #include <Eigen/Dense>

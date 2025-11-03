@@ -1,9 +1,3 @@
-//
-// Created by xucong on 25-2-12.
-// © 2025 Synaptix AI. All rights reserved.
-// Tsung Xu<xucong@synaptix.ai>
-//
-
 #include <iomanip>
 #include <iostream>
 #include <sstream>

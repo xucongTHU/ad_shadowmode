@@ -1,6 +1,7 @@
 //
 // Created by xucong on 25-5-8.
 // © 2025 Synaptix AI. All rights reserved.
+// Tsung Xu<xucong@synaptix.ai>
 //
 
 #ifndef SHADOW_MODE_SLOPEDETECTIONTRIGGER_H
@@ -21,13 +22,11 @@ namespace shadow {
 namespace trigger {
 class SlopeDetectionTrigger : public TriggerBase {
 public:
-    SlopeDetectionTrigger(const std::shared_ptr<senseAD::rscl::comm::Node>& node)
-        : node_ptr_(node), trigger_name_("SlopeDetectionTrigger") {}
+    SlopeDetectionTrigger(): trigger_name_("SlopeDetectionTrigger") {}
     ~SlopeDetectionTrigger() = default;
 
     bool Proc() override;
     bool CheckCondition() override;
-    void NotifyTriggerContext(const TriggerContext& context) override;
     std::string GetTriggerName() const override { return trigger_name_; }
     void OnMessageReceived(const std::string& topic, const TRawMessagePtr& msg) override;
 

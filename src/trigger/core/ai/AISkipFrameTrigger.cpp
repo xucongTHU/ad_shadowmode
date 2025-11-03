@@ -5,15 +5,14 @@
 
 namespace shadow::trigger {
 
-AISkipFrameTrigger::AISkipFrameTrigger(stoic::cm::NodeHandle& nh, 
-                                       bool fromConfig) {
+AISkipFrameTrigger::AISkipFrameTrigger(bool fromConfig) {
   if (fromConfig) {
     // 默认配置文件路径
     std::string configPath = std::string(common::getInstallRootPath())
                             + "/config/ai_shadow_trigger_conf.yaml";
-    LOG_INFO("[AISkipFrameTrigger] Init load configPath=%s", 
+    LOG_INFO("[AISkipFrameTrigger] Init load configPath=%s",
             configPath.c_str());
-    
+
     // 加载配置文件
     YAML::Node configNode;
     try {
@@ -25,25 +24,25 @@ AISkipFrameTrigger::AISkipFrameTrigger(stoic::cm::NodeHandle& nh,
     }
 
     // debug标志
-    common::loadNode<bool>(configNode, debug, "debug");
+    AILoadNode<bool>(configNode, debug, "debug");
 
     // 读取当前算子的配置参数
     if (configNode[triggerName].IsDefined()) {
       auto triggerNode = configNode[triggerName];
-      common::loadNode<std::string>(triggerNode, subTopic, "subTopic");
-      common::loadNode<int>(triggerNode, pubRate, "pubRate");
-      common::loadNode<int>(triggerNode, lostAgeThresh, "lostAgeThresh");
-      common::loadNode<int64_t>(triggerNode, visionTimeDuration, "visionTimeDuration");
+      AILoadNode<std::string>(triggerNode, subTopic, "subTopic");
+      AILoadNode<int>(triggerNode, pubRate, "pubRate");
+      AILoadNode<int>(triggerNode, lostAgeThresh, "lostAgeThresh");
+      AILoadNode<int64_t>(triggerNode, visionTimeDuration, "visionTimeDuration");
       visionTimeDuration *= AI_TIME_CONVERSION;
-      common::loadNode<int>(triggerNode, triggerEnable, "triggerEnable");
+      AILoadNode<int>(triggerNode, triggerEnable, "triggerEnable");
       int priority = 0;
-      common::loadNode<int>(triggerNode, priority, "priority");
+      AILoadNode<int>(triggerNode, priority, "priority");
       triggerPriority = static_cast<int8_t>(priority);
     } else {
       LOG_WARN("[AISkipFrameTrigger] load config error, use default!");
     }
   }
-  
+
   // debug 信息
   if (debug) {
     LOG_INFO("================ AISkipFrameTrigger Config =============");
@@ -56,15 +55,6 @@ AISkipFrameTrigger::AISkipFrameTrigger(stoic::cm::NodeHandle& nh,
     LOG_INFO("=========================================================");
   }
 
-  // 订阅视觉感知结果
-  synxai::cm::idl::SubscriberConf conf_;
-  conf_.set_pending_queue_size(1);
-  AdapterManager<AIVisionModelOutput>::SubscriberBuilder(nh)
-     .topic(subTopic)
-     .subConf(conf_)
-     .subscribe(std::bind(&AISkipFrameTrigger::VisionCallback, this,
-                std::placeholders::_1, std::placeholders::_2));
-
   // 条件判断初始化
   conditionChecker = std::make_unique<TriggerConditionChecker>();
 }
@@ -72,87 +62,82 @@ AISkipFrameTrigger::AISkipFrameTrigger(stoic::cm::NodeHandle& nh,
 AISkipFrameTrigger::~AISkipFrameTrigger() { }
 
 bool AISkipFrameTrigger::Proc() {
-  common::Rate rate(pubRate);
-  while (stoic::cm::ok()) {
-    {
-      std::unique_lock<std::mutex> lck(statusMtx);  
+  bool ok = CheckCondition();
+  CHECK_AND_RETURN(ok, AISkipFrameTrigger, "CheckCondition failed!", false);
 
-      // 判断算子状态
-      CheckCondition();
+  TriggerContext context;
+  context.timeStamp = common::Timer::now();
+  context.triggerId = trigger_id_;
+  context.triggerName = GetTriggerName();
+  context.businessType = business_type_;
+  context.triggerStatus = TriggerContext::TriggerState::Triggered;
+  NotifyTriggerContext(context);
 
-      // 如果满足条件，则触发算子，发送消息
-      if (triggerStatus) {
-        TriggerContext context;
-        context.timeStamp = common::Timer::now();
-        context.triggerId = trigger_obj_ ? trigger_obj_->triggerId : "10";
-        context.triggerName = GetTriggerName();
-        context.triggerStatus = TriggerContext::TriggerState::Triggered;
-
-        NotifyTriggerContext(context); // 调用通知接口
-        if (debug) {
-          LOG_INFO("[AISkipFrameTrigger] trigger status: TRUE");
-        }
-      }
-
-    }
-    rate.sleep();
-  }
-
-  return true;
+  return ok;
 }
 
 bool AISkipFrameTrigger::CheckCondition() {
   // 如果没有要判断的条件，则直接范围（一般是消息还没同步）
   if (vars.empty()) {
-    return triggerStatus;
+    LOG_WARN("[AISkipFrameTrigger] inputIds is empty!");
+    return false;
   }
 
   // 条件判断
-  triggerStatus = conditionChecker->check(vars);
+  bool triggerStatus = conditionChecker->check(vars);
 
   // 清空当前需要判断的条件，等待下次
   vars.clear();
 
-  return triggerStatus;
-}
+  if (debug) {
+    LOG_INFO("[AISkipFrameTrigger] CheckCondition = %d", triggerStatus);
+  }
 
-void AISkipFrameTrigger::NotifyTriggerContext(TriggerContext context) {
-    TriggerFactory::Instance().InvokeTriggerCallback(context);
-    LOG_INFO("Trigger notified: %s (ID: %s, Time: %ld)",
-             context.triggerName.c_str(), context.triggerId.c_str(), context.timeStamp);
+  return triggerStatus;
 }
 
 std::string AISkipFrameTrigger::GetTriggerName() const {
   return triggerName;
 }
 
-int8_t AISkipFrameTrigger::GetPriority() const {
-  return  triggerPriority;
-}
+void AISkipFrameTrigger::OnMessageReceived(
+    const std::string& topic, const TRawMessagePtr& msg) {
+  if (topic == subTopic) {
+    if (debug) {
+      LOG_INFO("[AISkipFrameTrigger] get perception msg (%s)", topic.c_str());
+    }
 
-bool AISkipFrameTrigger::GetStatus() {
-  std::unique_lock<std::mutex> lock(statusMtx);
-  return triggerStatus;
-}
+    kj::ArrayPtr<const capnp::word> vi_kjarr(reinterpret_cast<const capnp::word*>
+        (msg->Bytes()), msg->ByteSize());
+    ::capnp::FlatArrayMessageReader reader(vi_kjarr);
 
-void AISkipFrameTrigger::UpdateStatus(bool status) {
-  std::unique_lock<std::mutex> lock(statusMtx);
-  triggerStatus = status;
-}
+    auto objectFrameReader = reader.getRoot<senseAD::msg::perception::ObjectFrame>();
 
-void AISkipFrameTrigger::UpdateTriggerEnable(int enable) {
-  std::lock_guard<std::mutex> lock(triggerEnableMtx);
-  triggerEnable = enable;
-}
+    AIVisionModelOutput visionMsg;
+    visionMsg.stamp = objectFrameReader.getHeader().getTime().getNanoSec();
+    visionMsg.sensorStamp = objectFrameReader.getFrameTimestampNs();
+    auto objectList = objectFrameReader.getPerceptionObjectList();
+    visionMsg.validCnt = std::min(static_cast<int>(objectList.size()), AI_MAX_TRACK_OBJ);
 
-void AISkipFrameTrigger::VisionCallback(const AIVisionModelOutput& msg, const std::string& topic) {
-  if (debug) {
-    LOG_INFO("[AISkipFrameTrigger] get perception msg (%s), stamp=%ld",
-             topic.c_str(), msg.stamp);
+    int index = 0;
+    for (auto obj : objectList) {
+      if (index >= AI_MAX_TRACK_OBJ) {
+        break;
+      }
+
+      AIVisionTrackObject objInfo;
+      objInfo.trackId = obj.getTrackId();
+      objInfo.updateTime = obj.getLastMeasureUpdateTimestampNs();
+      visionMsg.visionRes[index] = objInfo;
+      index += 1;
+    }
+
+    if (debug) {
+      LOG_INFO("[AISkipFrameTrigger] msg info : stamp=%u, validCnt=%d", visionMsg.stamp, visionMsg.validCnt);
+    }
+
+    JudgeSkipFrame(visionMsg);
   }
-  
-  // 同步进行判断
-  JudgeSkipFrame(msg);
 }
 
 void AISkipFrameTrigger::EnableFlag() {
@@ -166,9 +151,9 @@ void AISkipFrameTrigger::EnableFlag() {
   if (debug) {
     auto elmes = conditionChecker->get_elements();
     for (auto & elem : elmes) {
-      LOG_INFO("Variable: %s | Operator: %s | Threshold: %s | Logic: %s", 
-                elem.variable.c_str(), elem.comparison_op.c_str(), 
-                elem.threshold_str().c_str(), 
+      LOG_INFO("Variable: %s | Operator: %s | Threshold: %s | Logic: %s",
+                elem.variable.c_str(), elem.comparison_op.c_str(),
+                elem.threshold_str().c_str(),
                 (elem.logical_op.empty() ? "Empty" : elem.logical_op).c_str());
     }
   }
@@ -190,7 +175,6 @@ void AISkipFrameTrigger::JudgeSkipFrame(const AIVisionModelOutput &msg) {
 
   // 目标信息检测
   {
-    std::lock_guard<std::mutex> lock(triggerEnableMtx);
     // lostAge
     if (triggerEnable & TRIGGER_LOST_AGE) {
       double lost = static_cast<double>(JudgePercetpionLost(msg));
@@ -199,7 +183,7 @@ void AISkipFrameTrigger::JudgeSkipFrame(const AIVisionModelOutput &msg) {
         LOG_INFO("[AISkipFrameTrigger] lostAge = %f", lost);
       }
     }
-    
+
     // trackTypeDiff
     if (triggerEnable & TRIGGER_OBJECT_INFO) {
       double typeDiff = static_cast<double>(JudgePercetpionType(msg));
@@ -213,7 +197,7 @@ void AISkipFrameTrigger::JudgeSkipFrame(const AIVisionModelOutput &msg) {
     if (triggerEnable & TRIGGER_TIME_DURATION) {
       // ms
       double timeDiff = static_cast<double>((msg.stamp - latestStamp) / AI_TIME_CONVERSION);
-      timeDiff = latestStamp == -1 ? 0.0 : latestStamp;
+      timeDiff = latestStamp == 0 ? 0.0 : latestStamp;
       vars["frameStampDiff"] = timeDiff;
       if (debug) {
         LOG_INFO("[AISkipFrameTrigger] frameStampDiff = %f", timeDiff);

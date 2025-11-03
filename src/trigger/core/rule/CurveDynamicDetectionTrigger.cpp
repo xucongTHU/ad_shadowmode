@@ -1,6 +1,7 @@
 //
 // Created by xucong on 24-11-27.
-// Copyright (c) 2024 Synaptix AI. All rights reserved.
+// © 2025 Synaptix AI. All rights reserved.
+// Tsung Xu<xucong@synaptix.ai>
 //
 
 #include "CurveDynamicDetectionTrigger.h"
@@ -26,9 +27,9 @@ bool CurveDynamicDetectionTrigger::Proc() {
 }
 
 void CurveDynamicDetectionTrigger::OnMessageReceived(const std::string& topic, const TRawMessagePtr& msg) {
-    if (topic == "/ad_pub_test/curve") {
+    if (topic == "/caic_pub_test/curve") {
         UpdateVehicleInfo(msg);
-    } else if (topic == "/ad_pub_test/EmergencyEvasionTrigger"){
+    } else if (topic == "/caic_pub_test/EmergencyEvasionTrigger"){
         UpdateVehicleInfo(msg);
     }
 
@@ -81,14 +82,6 @@ bool CurveDynamicDetectionTrigger::CheckCondition() {
     bool ok = trigger_checker_.check(vars);
     
     return ok;
-}
-
-void CurveDynamicDetectionTrigger::NotifyTriggerContext(const TriggerContext& context) {
-    if (factoryPtr_) {
-        factoryPtr_->OnTriggerContext(context);
-    }
-    // LOG_INFO("Trigger notified: %s (ID: %s, Time: %ld)",
-    //          context.triggerName.c_str(), context.triggerId.c_str(), context.timeStamp);
 }
 
 } // namespace trigger

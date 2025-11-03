@@ -1,11 +1,19 @@
+/*******************************************************************
+* Copyright (c) 2025 T3CAIC. All rights reserved.
+*
+* @file AiMsgBase.h
+* @brief 自定义AI相关消息
+*
+* @author maqiang
+* @date 2025-05-08
+*******************************************************************/
 #pragma once
 
 #include <vector>
 #include <stdint.h>
 #include <memory>
 
-#include "cm/cm.h"
-#include "ad_interface.h"
+#include "yaml-cpp/yaml.h"
 
 namespace shadow::trigger {
 
@@ -33,7 +41,7 @@ struct AIDetection {
 
   // 获取检测框的大小
   float box_size() {
-    return (bbox[AI_BBOX_R_INDEX] - bbox[AI_BBOX_L_INDEX]) 
+    return (bbox[AI_BBOX_R_INDEX] - bbox[AI_BBOX_L_INDEX])
          * (bbox[AI_BBOX_B_INDEX] - bbox[AI_BBOX_T_INDEX]);
   }
 };
@@ -41,11 +49,11 @@ struct AIDetection {
 /**
  * @brief 2d检测结果
  */
-struct AIDetectModelOutput : public ad_std::MessageBase {
-  int64_t stamp = -1;
-  int64_t sensorStamp = -1;
+struct AIDetectModelOutput {
+  uint64_t stamp = 0;
+  uint64_t sensorStamp = 0;
   uint8_t validCnt = 0;                   // 有效的检测个数
-  AIDetection result[AI_MAX_DETECT_OBJ];
+  AIDetection boxRes[AI_MAX_DETECT_OBJ];
 };
 
 /**
@@ -53,6 +61,7 @@ struct AIDetectModelOutput : public ad_std::MessageBase {
  */
 struct AIVisionTrackObject {
   int trackId;                       // 轨迹id
+  uint64_t updateTime;               // 轨迹更新时间
   float position[AI_OBJ_POS_DIM];    // 自车坐标系下目标的位置
   float speed[AI_OBJ_POS_DIM];       // 自车坐标系下目标速度
   float lwh[AI_OBJ_LWH_DIM];         // 目标的长宽高
@@ -63,9 +72,9 @@ struct AIVisionTrackObject {
 /**
  * @brief 视觉感知结果
  */
-struct AIVisionModelOutput : public ad_std::MessageBase {
-  int64_t stamp = -1;
-  int64_t sensorStamp = -1;
+struct AIVisionModelOutput {
+  uint64_t stamp = 0;
+  uint64_t sensorStamp = 0;
   uint8_t validCnt = 0;                              // 有效跟踪个数
   AIVisionTrackObject visionRes[AI_MAX_TRACK_OBJ];   // 跟踪结果
 };
@@ -86,47 +95,58 @@ struct AIDetectionLidar {
 /**
  * @brief 雷达感知结果
  */
-struct AILidarModelOutput : public ad_std::MessageBase {
-  int64_t stamp = -1;
-  int64_t sensorStamp = -1;
+struct AILidarModelOutput {
+  uint64_t stamp = 0;
+  uint64_t sensorStamp = 0;
   uint8_t validCnt = 0;                   // 有效个数
-  AIDetectionLidar result[AI_MAX_TRACK_OBJ];
+  AIDetectionLidar lidarRes[AI_MAX_TRACK_OBJ];
 };
 
 // 路况枚举
 enum class EMRoadType {
-  ROAD_UNSET = -1,
-  ROAD_HIGHWAY = 0,
-  ROAD_URBAN = 1,
-  ROAD_BRIDGE = 2,
+  ROAD_UNKNOW = 0,
+  ROAD_OPEN_ROAD = 1,
+  ROAD_CLOSED_ROAD = 2,
   ROAD_TUNNEL = 3
 };
 
 // 天气枚举
 enum class EMWeatherType {
-  WEATHER_UNSET = -1,
-  WEATHER_SUNNY = 0,
-  WEATHER_RAINY = 1,
-  WEATHER_OVERCAST = 2,
-  WEATHER_UNKNOW = 3
+  WEATHER_UNKNOW = 0,
+  WEATHER_OVERCAST = 1,
+  WEATHER_SUNNY = 2,
+  WEATHER_RAINY = 3,
+  WEATHER_FOGGY = 4,
+  WEATHER_SNOWY = 5,
+  WEATHER_SANDY = 6,
+  WEATHER_OTHERS = 7,
 };
 
 // 时间枚举
 enum class EMTimeType {
-  TIME_UNSET = -1,
-  TIME_DAY = 0,
-  TIME_NIGHT = 1
+  TIME_UNKNOW = 0,
+  TIME_DAYTIME = 1,
+  TIME_NIGHT_BRIGHT = 2
 };
 
 /**
  * @brief 路况感知结果
  */
-struct AIRoadConditionOutput : public ad_std::MessageBase {
-  int64_t stamp;
-  int64_t sensorStamp = -1;
-  EMRoadType roadType = EMRoadType::ROAD_UNSET;
-  EMWeatherType weatherType = EMWeatherType::WEATHER_UNSET;
-  EMTimeType timeType = EMTimeType::TIME_UNSET;
+struct AIRoadConditionOutput {
+  uint64_t stamp;
+  uint64_t sensorStamp = 0;
+  EMRoadType roadType = EMRoadType::ROAD_UNKNOW;
+  EMWeatherType weatherType = EMWeatherType::WEATHER_UNKNOW;
+  EMTimeType timeType = EMTimeType::TIME_UNKNOW;
 };
+
+template <typename _T>
+void AILoadNode(const YAML::Node& node, _T& value, std::string name) {
+  if (node[name]) {
+    value = node[name].as<_T>();
+  } else {
+    std::cout << "[Error] Can't find node " << name << std::endl;
+  }
+}
 
 }  // namespace shadow::trigger
